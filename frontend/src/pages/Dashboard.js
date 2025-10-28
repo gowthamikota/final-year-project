@@ -1,230 +1,343 @@
 import React, { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 function Dashboard() {
-  const [file, setFile] = useState(null);
-  const [role, setRole] = useState("");
-  const [score, setScore] = useState(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState(null);
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState("overview");
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsAnalyzing(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Mock analysis data
-    setScore(82);
-    setAnalysis({
-      strengths: [
-        "Strong programming skills match",
-        "Relevant project experience",
-        "Good educational background"
-      ],
-      improvements: [
-        "Add more cloud computing experience",
-        "Include specific framework expertise",
-        "Enhance leadership examples"
-      ],
-      missingKeywords: ["AWS", "React", "Agile"],
-      roleSuggestions: ["Full Stack Developer", "Software Engineer", "Frontend Developer"]
-    });
-    setIsAnalyzing(false);
+  // Mock data - in real app, this would come from API
+  const dashboardData = {
+    stats: {
+      profileStrength: 85,
+      avgMatchScore: 78,
+      jobsApplied: 12,
+      interviews: 4,
+      profileViews: 24
+    },
+    recentAnalyses: [
+      { id: 1, role: "Frontend Developer", company: "Tech Corp", score: 92, date: "2024-01-15", status: "Excellent" },
+      { id: 2, role: "Full Stack Engineer", company: "Startup Inc", score: 78, date: "2024-01-12", status: "Good" },
+      { id: 3, role: "React Developer", company: "Digital Agency", score: 65, date: "2024-01-10", status: "Fair" },
+      { id: 4, role: "UI Engineer", company: "Product Co", score: 85, date: "2024-01-08", status: "Very Good" }
+    ],
+    skillGaps: [
+      { skill: "AWS", demand: "High", priority: "High", resources: 3 },
+      { skill: "GraphQL", demand: "Medium", priority: "Medium", resources: 2 },
+      { skill: "TypeScript", demand: "High", priority: "High", resources: 4 },
+      { skill: "Docker", demand: "Medium", priority: "Medium", resources: 3 }
+    ],
+    jobRecommendations: [
+      { id: 1, title: "Senior React Developer", company: "Innovation Labs", match: 94, location: "Remote", salary: "$120k-$140k" },
+      { id: 2, title: "Frontend Engineer", company: "Tech Solutions", match: 87, location: "New York, NY", salary: "$110k-$130k" },
+      { id: 3, title: "Full Stack Developer", company: "Digital Prime", match: 82, location: "Austin, TX", salary: "$100k-$120k" },
+      { id: 4, title: "UI/UX Developer", company: "Creative Minds", match: 79, location: "Remote", salary: "$95k-$115k" }
+    ],
+    activities: [
+      { id: 1, action: "Resume Analysis", description: "Frontend Developer at Tech Corp", time: "2 hours ago", type: "analysis" },
+      { id: 2, action: "Profile Updated", description: "Added GitHub integration", time: "1 day ago", type: "update" },
+      { id: 3, action: "Skill Assessment", description: "Completed React skills test", time: "2 days ago", type: "assessment" },
+      { id: 4, action: "Job Applied", description: "Senior Developer at Startup Inc", time: "3 days ago", type: "application" }
+    ]
   };
 
   const getScoreColor = (score) => {
-    if (score >= 80) return "text-green-600";
-    if (score >= 60) return "text-yellow-600";
-    return "text-red-600";
+    if (score >= 90) return "text-green-600";
+    if (score >= 80) return "text-green-500";
+    if (score >= 70) return "text-yellow-500";
+    if (score >= 60) return "text-orange-500";
+    return "text-red-500";
   };
 
-  const getScoreRing = (score) => {
-    if (score >= 80) return "from-green-400 to-green-600";
-    if (score >= 60) return "from-yellow-400 to-yellow-600";
-    return "from-red-400 to-red-600";
+  const getStatusColor = (score) => {
+    if (score >= 90) return "bg-green-100 text-green-800";
+    if (score >= 80) return "bg-green-50 text-green-700";
+    if (score >= 70) return "bg-yellow-50 text-yellow-700";
+    if (score >= 60) return "bg-orange-50 text-orange-700";
+    return "bg-red-50 text-red-700";
+  };
+
+  const getStatusText = (score) => {
+    if (score >= 90) return "Excellent";
+    if (score >= 80) return "Very Good";
+    if (score >= 70) return "Good";
+    if (score >= 60) return "Fair";
+    return "Needs Work";
+  };
+
+  const StatCard = ({ title, value, subtitle, icon, trend }) => (
+    <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className="text-3xl font-bold text-gray-900 mt-2">{value}</p>
+          {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+          {trend && (
+            <p className={`text-sm font-medium mt-2 ${trend.value > 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {trend.value > 0 ? '↗' : '↘'} {trend.value}% {trend.period}
+            </p>
+          )}
+        </div>
+        <div className="text-2xl text-blue-600">{icon}</div>
+      </div>
+    </div>
+  );
+
+  const ProgressBar = ({ percentage, color = "blue" }) => {
+    const colorClasses = {
+      blue: "bg-blue-600",
+      green: "bg-green-600",
+      yellow: "bg-yellow-500",
+      red: "bg-red-600"
+    };
+
+    return (
+      <div className="w-full bg-gray-200 rounded-full h-2">
+        <div 
+          className={`h-2 rounded-full transition-all duration-500 ${colorClasses[color]}`}
+          style={{ width: `${percentage}%` }}
+        ></div>
+      </div>
+    );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-      {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            Profile Analysis
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Upload your resume and target role to get detailed compatibility insights
-          </p>
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Career Dashboard</h1>
+              <p className="text-gray-600 mt-2">
+                Welcome back, <span className="font-semibold text-blue-600">{user?.name || "User"}</span>
+              </p>
+            </div>
+            <div className="mt-4 sm:mt-0">
+              <button className="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition-colors duration-200 font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-transform duration-200">
+                + New Analysis
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Analysis Form */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 max-w-4xl mx-auto mb-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* File Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Upload Resume
-              </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-blue-400 transition-colors duration-200">
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx"
-                  className="hidden"
-                  id="resume-upload"
-                  onChange={(e) => setFile(e.target.files[0])}
-                  required
-                />
-                <label htmlFor="resume-upload" className="cursor-pointer">
-                  <div className="flex flex-col items-center justify-center">
-                    <svg className="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <p className="text-lg font-medium text-gray-600 mb-1">
-                      {file ? file.name : "Choose resume file"}
-                    </p>
-                    <p className="text-sm text-gray-500">PDF, DOC, or DOCX (Max 5MB)</p>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            {/* Job Role Input */}
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-3">
-                Target Job Role
-              </label>
-              <div className="relative">
-                <input
-                  id="role"
-                  type="text"
-                  placeholder="e.g., Full Stack Developer, Data Scientist, Product Manager"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/50 backdrop-blur-sm text-lg"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  required
-                />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Analyze Button */}
-            <button
-              type="submit"
-              disabled={isAnalyzing}
-              className="group relative w-full flex justify-center py-4 px-6 border border-transparent text-lg font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:-translate-y-0.5 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              {isAnalyzing ? (
-                <div className="flex items-center">
-                  <div className="w-6 h-6 border-t-2 border-white rounded-full animate-spin mr-3"></div>
-                  Analyzing Compatibility...
-                </div>
-              ) : (
-                <div className="flex items-center">
-                  Analyze Compatibility
-                  <svg className="w-6 h-6 ml-3 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </div>
-              )}
-            </button>
-          </form>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <StatCard 
+            title="Profile Strength" 
+            value={`${dashboardData.stats.profileStrength}%`}
+            subtitle="Complete your profile"
+            icon="💪"
+            trend={{ value: 5, period: "this month" }}
+          />
+          <StatCard 
+            title="Avg Match Score" 
+            value={`${dashboardData.stats.avgMatchScore}%`}
+            subtitle="Across all analyses"
+            icon="🎯"
+            trend={{ value: 12, period: "this month" }}
+          />
+          <StatCard 
+            title="Jobs Applied" 
+            value={dashboardData.stats.jobsApplied}
+            subtitle="This month"
+            icon="📨"
+            trend={{ value: 3, period: "this week" }}
+          />
+          <StatCard 
+            title="Interviews" 
+            value={dashboardData.stats.interviews}
+            subtitle="Upcoming & completed"
+            icon="🤝"
+            trend={{ value: 2, period: "this week" }}
+          />
         </div>
 
-        {/* Results Section */}
-        {score && analysis && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-            {/* Score Card */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 lg:col-span-1">
-              <div className="text-center">
-                <h3 className="text-2xl font-bold text-gray-800 mb-6">Compatibility Score</h3>
-                <div className="relative inline-block">
-                  <div className={`w-48 h-48 rounded-full flex items-center justify-center bg-gradient-to-r ${getScoreRing(score)} shadow-lg`}>
-                    <div className="w-40 h-40 bg-white rounded-full flex items-center justify-center">
-                      <span className={`text-5xl font-bold ${getScoreColor(score)}`}>
-                        {score}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <p className="mt-6 text-lg text-gray-600">
-                  {score >= 80 ? "Excellent match!" : score >= 60 ? "Good potential" : "Needs improvement"}
-                </p>
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - 2/3 width */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Recent Analyses */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-xl font-bold text-gray-900">Recent Analyses</h2>
+                <p className="text-gray-600 mt-1">Your latest resume compatibility results</p>
               </div>
-            </div>
-
-            {/* Analysis Details */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Strengths */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6">
-                <h3 className="text-xl font-bold text-green-600 mb-4 flex items-center">
-                  <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Key Strengths
-                </h3>
-                <ul className="space-y-2">
-                  {analysis.strengths.map((strength, index) => (
-                    <li key={index} className="flex items-start text-gray-700">
-                      <span className="text-green-500 mr-2">•</span>
-                      {strength}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Improvements */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6">
-                <h3 className="text-xl font-bold text-yellow-600 mb-4 flex items-center">
-                  <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                  Areas for Improvement
-                </h3>
-                <ul className="space-y-2">
-                  {analysis.improvements.map((improvement, index) => (
-                    <li key={index} className="flex items-start text-gray-700">
-                      <span className="text-yellow-500 mr-2">•</span>
-                      {improvement}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Additional Insights */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Missing Keywords */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6">
-                  <h4 className="font-semibold text-gray-800 mb-3">Missing Keywords</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {analysis.missingKeywords.map((keyword, index) => (
-                      <span key={index} className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm">
-                        {keyword}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Suggested Roles */}
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6">
-                  <h4 className="font-semibold text-gray-800 mb-3">Suggested Roles</h4>
-                  <div className="space-y-2">
-                    {analysis.roleSuggestions.map((suggestion, index) => (
-                      <div key={index} className="flex items-center text-gray-700">
-                        <span className="text-blue-500 mr-2">→</span>
-                        {suggestion}
+              <div className="p-6">
+                <div className="space-y-4">
+                  {dashboardData.recentAnalyses.map((analysis) => (
+                    <div key={analysis.id} className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl transition-colors duration-200">
+                      <div className="flex items-center space-x-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${getStatusColor(analysis.score)} font-bold text-lg`}>
+                          {analysis.score}%
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{analysis.role}</h3>
+                          <p className="text-gray-600 text-sm">{analysis.company}</p>
+                        </div>
                       </div>
-                    ))}
+                      <div className="text-right">
+                        <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(analysis.score)}`}>
+                          {getStatusText(analysis.score)}
+                        </span>
+                        <p className="text-gray-500 text-sm mt-1">{analysis.date}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button className="w-full mt-6 py-3 text-blue-600 hover:bg-blue-50 rounded-xl font-medium transition-colors duration-200">
+                  View All Analyses →
+                </button>
+              </div>
+            </div>
+
+            {/* Skill Gap Analysis */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-xl font-bold text-gray-900">Skill Gap Analysis</h2>
+                <p className="text-gray-600 mt-1">Skills to improve for better matches</p>
+              </div>
+              <div className="p-6">
+                <div className="space-y-6">
+                  {dashboardData.skillGaps.map((skill, index) => (
+                    <div key={index} className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <span className="font-semibold text-gray-900">{skill.skill}</span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            skill.demand === 'High' ? 'bg-red-100 text-red-800' :
+                            skill.demand === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {skill.demand} Demand
+                          </span>
+                        </div>
+                        <span className="text-sm text-gray-500">{skill.resources} resources</span>
+                      </div>
+                      <ProgressBar 
+                        percentage={skill.priority === 'High' ? 30 : skill.priority === 'Medium' ? 50 : 70} 
+                        color={skill.priority === 'High' ? 'red' : skill.priority === 'Medium' ? 'yellow' : 'green'}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <button className="w-full mt-6 py-3 text-blue-600 hover:bg-blue-50 rounded-xl font-medium transition-colors duration-200">
+                  Explore Learning Resources →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - 1/3 width */}
+          <div className="space-y-8">
+            {/* Profile Completeness */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-xl font-bold text-gray-900">Profile Completeness</h2>
+                <p className="text-gray-600 mt-1">Boost your match scores</p>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium text-gray-700">Resume</span>
+                      <span className="text-gray-500">95%</span>
+                    </div>
+                    <ProgressBar percentage={95} color="green" />
                   </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium text-gray-700">GitHub Profile</span>
+                      <span className="text-gray-500">60%</span>
+                    </div>
+                    <ProgressBar percentage={60} color="yellow" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium text-gray-700">LinkedIn Profile</span>
+                      <span className="text-gray-500">45%</span>
+                    </div>
+                    <ProgressBar percentage={45} color="orange" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium text-gray-700">Skills Verification</span>
+                      <span className="text-gray-500">75%</span>
+                    </div>
+                    <ProgressBar percentage={75} color="blue" />
+                  </div>
+                </div>
+                <button className="w-full mt-6 py-3 bg-blue-600 text-white hover:bg-blue-700 rounded-xl font-medium transition-colors duration-200">
+                  Complete Your Profile
+                </button>
+              </div>
+            </div>
+
+            {/* Job Recommendations */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-xl font-bold text-gray-900">Top Job Matches</h2>
+                <p className="text-gray-600 mt-1">Roles that fit your profile</p>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {dashboardData.jobRecommendations.map((job) => (
+                    <div key={job.id} className="p-4 border border-gray-200 rounded-xl hover:border-blue-300 transition-colors duration-200">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold text-gray-900">{job.title}</h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(job.match)}`}>
+                          {job.match}%
+                        </span>
+                      </div>
+                      <p className="text-gray-600 text-sm mb-2">{job.company} • {job.location}</p>
+                      <p className="text-green-600 text-sm font-medium mb-3">{job.salary}</p>
+                      <div className="flex space-x-2">
+                        <button className="flex-1 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                          Quick Apply
+                        </button>
+                        <button className="flex-1 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors duration-200">
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button className="w-full mt-6 py-3 text-blue-600 hover:bg-blue-50 rounded-xl font-medium transition-colors duration-200">
+                  View More Jobs →
+                </button>
+              </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100">
+              <div className="p-6 border-b border-gray-200">
+                <h2 className="text-xl font-bold text-gray-900">Recent Activity</h2>
+                <p className="text-gray-600 mt-1">Your latest actions</p>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {dashboardData.activities.map((activity) => (
+                    <div key={activity.id} className="flex items-start space-x-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm ${
+                        activity.type === 'analysis' ? 'bg-blue-500' :
+                        activity.type === 'update' ? 'bg-green-500' :
+                        activity.type === 'assessment' ? 'bg-purple-500' : 'bg-orange-500'
+                      }`}>
+                        {activity.type === 'analysis' ? '🔍' :
+                         activity.type === 'update' ? '⚡' :
+                         activity.type === 'assessment' ? '📊' : '📨'}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900">{activity.action}</p>
+                        <p className="text-gray-600 text-sm">{activity.description}</p>
+                        <p className="text-gray-400 text-xs mt-1">{activity.time}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
