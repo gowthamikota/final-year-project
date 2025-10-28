@@ -1,9 +1,21 @@
 import React, { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isLoggedIn] = useState(true); // This would come from auth context
-  const [userName] = useState("Alex Johnson"); // This would come from auth context
+  const { isLoggedIn, user, logout, isLoading } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 relative overflow-hidden">
@@ -55,9 +67,9 @@ function Home() {
                   <div className="relative group">
                     <button className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition-colors duration-200">
                       <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-sm">
-                        {userName.split(' ').map(n => n[0]).join('')}
+                        {user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
                       </div>
-                      <span className="font-medium">{userName}</span>
+                      <span className="font-medium">{user?.name || 'User'}</span>
                       <svg className="w-4 h-4 transition-transform duration-200 group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
@@ -86,12 +98,15 @@ function Home() {
                           Settings
                         </a>
                         <div className="border-t border-gray-200 my-1"></div>
-                        <a href="/logout" className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200">
+                        <button 
+                          onClick={handleLogout}
+                          className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200"
+                        >
                           <svg className="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                           </svg>
                           Logout
-                        </a>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -182,14 +197,21 @@ function Home() {
                     <a href="/settings" className="text-gray-700 hover:text-blue-600 font-medium" onClick={() => setIsMenuOpen(false)}>
                       Settings
                     </a>
-                    <a href="/logout" className="text-red-600 font-medium" onClick={() => setIsMenuOpen(false)}>
+                    <button 
+                      onClick={() => {
+                        handleLogout();
+                        setIsMenuOpen(false);
+                      }}
+                      className="text-red-600 font-medium text-left"
+                    >
                       Logout
-                    </a>
+                    </button>
                   </>
                 ) : (
                   <a
                     href="/login"
                     className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium text-center"
+                    onClick={() => setIsMenuOpen(false)}
                   >
                     Get Started
                   </a>
