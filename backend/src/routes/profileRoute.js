@@ -1,11 +1,10 @@
 const express = require("express");
 const profileRouter = express.Router();
 
-const { userAuth } = require("../../middlewares/verify.js");
-const { validateEditprofile } = require("../../services/validate.js");
+const { validateEditprofile } = require("../services/validate.js");
 const bcrypt = require("bcrypt");
 
-profileRouter.get("/profile/view", userAuth, async (req, res) => {
+profileRouter.get("/profile/view", async (req, res) => {
   try {
     const user = req.user;
     res.send(user);
@@ -14,7 +13,7 @@ profileRouter.get("/profile/view", userAuth, async (req, res) => {
   }
 });
 
-profileRouter.patch("/profile/update", userAuth, async (req, res) => {
+profileRouter.patch("/profile/update", async (req, res) => {
   try {
     if (!validateEditprofile(req)) {
       throw new Error("Invalid Update Request");
@@ -31,4 +30,14 @@ profileRouter.patch("/profile/update", userAuth, async (req, res) => {
     res.status(401).send("Something went wrong: " + err.message);
   }
 });
+
+
+profileRouter.delete("/profile/delete", async (req, res) => {
+  
+});
+
+profileRouter.get("/profile/history", async (req, res) => {
+  
+});
+
 module.exports = profileRouter;

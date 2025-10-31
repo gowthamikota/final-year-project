@@ -1,6 +1,7 @@
 const express = require("express");
 require("dotenv").config();
 const { connectDb } = require("./config/database");
+const { userAuth } = require("./middlewares/verifyMiddleware.js");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 
@@ -16,11 +17,13 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-const authRouter = require("./routes/user/authenticate.js");
-const profileRouter = require("./routes/user/profile.js");
+const authRouter = require("./routes/authRoute.js");
+const profileRouter = require("./routes/profileRoute.js");
+const resumeRouter = require("./routes/resumeRoute.js");
 
-app.use("/api", authRouter);
-app.use("/api", profileRouter);
+app.use("/api", userAuth, authRouter);
+app.use("/api", userAuth, profileRouter);
+app.use("/api", userAuth, resumeRouter);
 
 
 connectDb()
