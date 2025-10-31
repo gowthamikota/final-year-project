@@ -1,5 +1,8 @@
 const axios = require("axios");
 
+
+// this n8n workflow parses the data from profiles and sends to profileScrappedData collection directly.
+
 async function triggerWorkflow(userId, filePath) {
   try {
     const response = await axios.post(

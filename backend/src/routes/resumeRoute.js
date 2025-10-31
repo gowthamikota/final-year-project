@@ -11,7 +11,7 @@ resumeRouter.post("/resume/upload", async (req, res) => {
 });
 
 
-//gets processed data from db and sends this data to analyzeprofile.py file
+//gets processed data from the ProcessedData collection and sends this data to analyzeprofile.py file
 resumeRouter.get("/resume/:userId", async (req, res) => {
     
 });
