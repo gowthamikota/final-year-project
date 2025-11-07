@@ -1,4 +1,4 @@
-const { execFile } = require("child_process");
+const { execFile } = require("../child_process");
 
 async function parser(filePath) {
   return new Promise((resolve, reject) => {
