@@ -1,7 +1,7 @@
 const express = require("express");
 const resumeRouter = express.Router();
-const { triggerWorkflow } = require("./services/n8n");
-const { parser } = require("../utils/resumeParser");
+const { triggerWorkflow } = require("../services/n8n");
+const { parser } = require("../python/resumeParser");
 
 
 // triggering of the resumeparser.py and n8n happens here and store data in their respective collections
