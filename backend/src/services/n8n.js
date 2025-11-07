@@ -7,6 +7,13 @@ const codeforcesModel = require("../models/codeforcedData");
 
 // this n8n workflow parses the data from profiles and sends to profileScrappedData collection directly.
 
+const profileModels = {
+  leetcode: leetcodeModel,
+  github: githubModel,
+  codechef: codechefModel,
+  codeforces: codeforcesModel,
+};
+
 async function triggerWorkflow(userId, profile,  profilePath) {
   try {
     const response = await axios.post(
@@ -15,9 +22,22 @@ async function triggerWorkflow(userId, profile,  profilePath) {
         profilePath,
       }
     );
-    
+
+    const profileData = response.data;
+    const Model = profileModel[profile.toLowerCase()];
+    if (!Model) throw new Error(`Unknown profile type: ${profile}`);
+
+    const saveDoc = new Model({
+      userId,
+      ...profileData
+    });
+    await saveDoc.save();
+    console.log(`${profile} data stored successfully`);
+    return { success: true, message: `${profile} data stored successfully` };
+
   } catch (error) {
-    console.error("Error triggering n8n workflow:", error.message);
+    console.error("Error Detected:", err.message);
+    return { success: false, error: err.message };
   }
 }
 
