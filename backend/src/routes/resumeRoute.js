@@ -10,24 +10,34 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
 
     let profileUrls = [];
     try {
-      profileUrls = JSON.parse(req.body.profileUrls || "[]");
+      if (typeof req.body.profileUrls === "string") {
+        profileUrls = JSON.parse(req.body.profileUrls);
+      } else if (Array.isArray(req.body.profileUrls)) {
+        profileUrls = req.body.profileUrls;
+      }
     } catch (err) {
-      console.warn("Invalid profilePaths JSON:", err.message);
+      console.warn("Invalid profileUrls JSON:", err.message);
     }
 
     for (const { profile, profileUrl } of profileUrls) {
+      if (!profileUrl) {
+        console.warn(`Skipping ${profile} - missing profileUrl`);
+        continue;
+      }
       await triggerWorkflow(userId, profile, profileUrl);
     }
+
     return res.status(200).json({
       success: true,
       message: "Resume uploaded, parsed, and workflows executed successfully",
       parsedResume: req.parsedResume,
     });
   } catch (err) {
-    console.error("Error:", err.message);
+    console.error("Error in resume/upload:", err.message);
     return res.status(500).json({ error: err.message });
   }
 });
+
 
 
 //gets processed data from the ProcessedData collection and sends this data to analyzeprofile.py file
