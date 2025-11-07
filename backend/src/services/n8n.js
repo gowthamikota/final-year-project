@@ -11,13 +11,13 @@ const profileModels = {
   codeforces: codeforcesModel,
 };
 
-async function triggerWorkflow(userId, profile, profilePath) {
+async function triggerWorkflow(userId, profile, profileUrl) {
   try {
     const webhookUrl = `http://localhost:5678/webhook/${profile}`;
     console.log(`Triggering n8n workflow: ${webhookUrl}`);
-    console.log(`Sending profile path: ${profilePath}`);
+    console.log(`Sending profile path: ${profileUrl}`);
 
-    const response = await axios.post(webhookUrl, { profilePath });
+    const response = await axios.post(webhookUrl, { profileUrl });
     if (!response?.data) {
       throw new Error("Empty response from n8n workflow");
     }
