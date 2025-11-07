@@ -1,21 +1,24 @@
-const { execFile } = require("../python/resumeparser.py");
+const { execFile } = require("child_process");
+const path = require("path");
 
-async function parser(filePath) {
+function parser(filePath) {
   return new Promise((resolve, reject) => {
-    execFile(
-      "python3",
-      ["./python/resumeparser.py", filePath],
-      (error, stdout, stderr) => {
-        if (error) return reject(stderr || error.message);
-        try {
-          const parsedData = JSON.parse(stdout);
-          resolve(parsedData);
-        } catch (err) {
-          reject("Invalid JSON output from resume parser");
-        }
+    const scriptPath = path.join(__dirname, "../python/resumeparser.py");
+
+    execFile("python", [scriptPath, filePath], (error, stdout, stderr) => {
+      if (error) {
+        console.error("Python Error:", stderr || error.message);
+        return reject(error);
       }
-    );
+
+      try {
+        const parsed = JSON.parse(stdout);
+        resolve(parsed);
+      } catch (err) {
+        reject("Invalid JSON output from resume parser");
+      }
+    });
   });
 }
 
-modul.export = { parser };
+module.exports = { parser };
