@@ -1,4 +1,4 @@
-const { execFile } = require("../child_process");
+const { execFile } = require("../python/resumeparser.py");
 
 async function parser(filePath) {
   return new Promise((resolve, reject) => {
