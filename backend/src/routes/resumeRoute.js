@@ -8,15 +8,15 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
   try {
     const userId = req.user?._id || "674A9C000000000000000000";
 
-    let profilePaths = [];
+    let profileUrls = [];
     try {
-      profilePaths = JSON.parse(req.body.profilePaths || "[]");
+      profileUrls = JSON.parse(req.body.profileUrls || "[]");
     } catch (err) {
       console.warn("Invalid profilePaths JSON:", err.message);
     }
 
-    for (const { profile, profilePath } of profilePaths) {
-      await triggerWorkflow(userId, profile, profilePath);
+    for (const { profile, profileUrl } of profileUrls) {
+      await triggerWorkflow(userId, profile, profileUrl);
     }
     return res.status(200).json({
       success: true,
