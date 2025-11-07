@@ -4,27 +4,29 @@ const { triggerWorkflow } = require("../services/n8n");
 const { uploader } = require("../middlewares/uploaderMiddleware");
 
 // triggering of the resumeparser.py and n8n happens here and store data in their respective collections
-resumeRouter.post("/resume/upload",uploader,  async (req, res) => {
+resumeRouter.post("/resume/upload", uploader, async (req, res) => {
+  try {
+    const userId = req.user?._id || "674A9C000000000000000000";
+
+    let profilePaths = [];
     try {
-        
-        const userId = req.user?._id || "674A9C000000000000000000";
-        const { profilePaths = [] } = req.body;
-  
-        for (const { profile, profilePath } of profilePaths) {
-          await triggerWorkflow(userId, profile, profilePath);
-        }
-        if (req.file?.path) {
-          await parser(req.file.path);
-        }
-      
-        return res
-          .status(200)
-          .json({ success: true, message: "Workflows executed successfully" });
+      profilePaths = JSON.parse(req.body.profilePaths || "[]");
+    } catch (err) {
+      console.warn("Invalid profilePaths JSON:", err.message);
     }
-    catch (err) {
-        console.error("Error:", err.message);
-        return res.status(500).json({ error: err.message });
+
+    for (const { profile, profilePath } of profilePaths) {
+      await triggerWorkflow(userId, profile, profilePath);
     }
+    return res.status(200).json({
+      success: true,
+      message: "Resume uploaded, parsed, and workflows executed successfully",
+      parsedResume: req.parsedResume,
+    });
+  } catch (err) {
+    console.error("Error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 
