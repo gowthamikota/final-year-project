@@ -17,3 +17,5 @@ async function parser(filePath) {
     );
   });
 }
+
+modul.export = { parser };
