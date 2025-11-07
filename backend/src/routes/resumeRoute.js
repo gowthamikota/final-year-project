@@ -3,7 +3,6 @@ const resumeRouter = express.Router();
 const { triggerWorkflow } = require("../services/n8n");
 const { parser } = require("../services/parser");
 
-
 // triggering of the resumeparser.py and n8n happens here and store data in their respective collections
 resumeRouter.post("/resume/upload", async (req, res) => {
     try {
