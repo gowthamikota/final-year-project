@@ -10,4 +10,6 @@ const codechefProfileSchema = new mongoose.Schema({
   ratingConsistency: { type: Number, required: true },
 });
 
-module.exports = mongoose.model("codechefProfile", codechefProfileSchema);
+const codechefModel = mongoose.model("codechefProfile", codechefProfileSchema);
+
+module.exports = codechefModel;

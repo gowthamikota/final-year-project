@@ -15,4 +15,5 @@ const leetcodeProfileSchema = new mongoose.Schema({
   reputation: { type: Number },
 });
 
-module.exports = mongoose.model("leetCodeProfile", leetcodeProfileSchema);
+const leetcodeModel = mongoose.model("leetCodeProfile", leetcodeProfileSchema);
+module.exports = leetcodeModel;

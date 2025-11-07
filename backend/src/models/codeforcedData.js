@@ -16,4 +16,6 @@ const codeforcesProfileSchema = new mongoose.Schema({
     }
 })
 
-module.exports = mongoose.model("codeforcesProfile", codeforcesProfileSchema);
+const codeforcesModel = mongoose.model("codeforcesProfile", codeforcesProfileSchema);
+
+module.exports = codeforcesModel;

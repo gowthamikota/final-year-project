@@ -52,4 +52,6 @@ const gitHubDataSchema = new mongoose.Schema({
   ],
 });
 
-module.exports = mongoose.model("githubProfile", gitHubDataSchema);
+const githubModel = mongoose.model("githubProfile", gitHubDataSchema);
+
+module.exports = githubModel;
