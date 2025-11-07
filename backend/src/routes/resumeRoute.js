@@ -1,27 +1,28 @@
 const express = require("express");
 const resumeRouter = express.Router();
 const { triggerWorkflow } = require("./services/n8n");
-const parser = require("./python/resumerparser");
+const { parser } = require("../utils/resumeParser");
 
 
 // user uploads the resume and enters the submit button
 resumeRouter.post("/resume/upload", async (req, res) => {
     
-// triggering of the resumeparser.py and n8n happens here and store data in their respective collections
-    // after above two process -> preprocess.py file triggers
+    // triggering of the resumeparser.py and n8n happens here and store data in their respective collections
     try {
         
-        const profilePaths = req.body.profilePaths || [];
-        const userId = req._id;
-        for (const path of profilePaths) {
-            await triggerWorkflow(userId, path);
+        const { profilePaths = [] } = req.body;
+        const userId = req.user?._id;
+        for (const { profile, profilePath } of profilePaths) {
+          await triggerWorkflow(userId, profile, profilePath);
         }
-
-        await parser(resume);
-        return res.status(200).json({ success: true });
+        await parser(req.file?.path);
+        return res
+          .status(200)
+          .json({ success: true, message: "Workflows executed successfully" });
     }
     catch (err) {
-        return res.status(500).json({ error: err.message || err });
+        console.error("Error:", err.message);
+        return res.status(500).json({ error: err.message });
     }
 });
 
