@@ -1,14 +1,15 @@
 const express = require("express");
 const resumeRouter = express.Router();
 const { triggerWorkflow } = require("../services/n8n");
-const { parser } = require("../services/parser");
+const { uploader } = require("../middlewares/uploaderMiddleware");
 
 // triggering of the resumeparser.py and n8n happens here and store data in their respective collections
-resumeRouter.post("/resume/upload", async (req, res) => {
+resumeRouter.post("/resume/upload",uploader,  async (req, res) => {
     try {
         
+        const userId = req.user?._id || "674A9C000000000000000000";
         const { profilePaths = [] } = req.body;
-        const userId = req.user?._id;
+  
         for (const { profile, profilePath } of profilePaths) {
           await triggerWorkflow(userId, profile, profilePath);
         }
