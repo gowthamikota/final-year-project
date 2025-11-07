@@ -22,7 +22,7 @@ const profileRouter = require("./routes/profileRoute.js");
 const resumeRouter = require("./routes/resumeRoute.js");
 const analysisRouter = require("./routes/analysisRoute.js");
 
-app.use("/api", userAuth, authRouter);
+app.use("/api", authRouter);
 app.use("/api", userAuth, profileRouter);
 app.use("/api", userAuth, resumeRouter);
 app.use("/api", userAuth, analysisRouter);
