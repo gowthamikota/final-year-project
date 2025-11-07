@@ -4,10 +4,8 @@ const { triggerWorkflow } = require("./services/n8n");
 const { parser } = require("../utils/resumeParser");
 
 
-// user uploads the resume and enters the submit button
+// triggering of the resumeparser.py and n8n happens here and store data in their respective collections
 resumeRouter.post("/resume/upload", async (req, res) => {
-    
-    // triggering of the resumeparser.py and n8n happens here and store data in their respective collections
     try {
         
         const { profilePaths = [] } = req.body;
@@ -15,7 +13,10 @@ resumeRouter.post("/resume/upload", async (req, res) => {
         for (const { profile, profilePath } of profilePaths) {
           await triggerWorkflow(userId, profile, profilePath);
         }
-        await parser(req.file?.path);
+        if (req.file?.path) {
+          await parser(req.file.path);
+        }
+      
         return res
           .status(200)
           .json({ success: true, message: "Workflows executed successfully" });
