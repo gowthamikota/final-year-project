@@ -16,6 +16,7 @@ def parse_resume(file_path):
     result = {
         "name": name.group(1) if name else None,
         "email": email.group(0) if email else None,
+        
     }
     return result
 
