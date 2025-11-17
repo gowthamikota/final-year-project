@@ -15,7 +15,7 @@ function runPreprocessor(userId) {
                 const out = JSON.parse(stdout);
                 resolve(out);
             } catch (err) {
-                reject("Invalid JSON from preprocess.py");
+                reject(new Error("Invalid JSON from preprocess.py: " + stdout));
             }
         });
     });

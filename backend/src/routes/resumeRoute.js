@@ -52,10 +52,6 @@ resumeRouter.get("/resume/:userId", async (req, res) => {
     
 });
 
-// delete the uploaded resume of the user
-resumeRouter.delete("/resume/:delete", async (req, res) => {
-    
-});
 
 module.exports = resumeRouter;
 

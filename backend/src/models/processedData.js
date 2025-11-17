@@ -17,6 +17,6 @@ const processedDataSchema = new mongoose.Schema({
   },
 });
 
-const processedModel = mongoose.model("processedData", processedDataSchema);
+const processedModel = mongoose.model("processeddata", processedDataSchema);
 
 module.exports = processedModel;
