@@ -69,6 +69,9 @@ def main():
     client = MongoClient(mongo_url)
     db = client["Final_year_project"]
 
+    print("Writing to DB:", db.name, file=sys.stderr)
+    print("Existing collections:", db.list_collection_names(), file=sys.stderr)
+
    
     profile, resume = load_data(db, user_object_id)
 
@@ -94,12 +97,15 @@ def main():
             "$set": {
                 "profileEmbedding": profile_vec.tolist(),
                 "resumeEmbedding": resume_vec.tolist(),
-                "updatedAt": datetime.utcnow(),
+                "updatedAt": datetime.utcnow()
             },
-            "$setOnInsert": {"createdAt": datetime.utcnow()},
+            "$setOnInsert": {
+                "createdAt": datetime.utcnow()
+            }
         },
-        upsert=True,
+        upsert=True
     )
+
 
     index.add(np.array([profile_vec]))
     index.add(np.array([resume_vec]))
