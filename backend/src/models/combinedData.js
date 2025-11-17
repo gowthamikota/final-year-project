@@ -37,14 +37,6 @@ const combinedDataSchema = new mongoose.Schema({
     ranking: Number,
   },
 
-  kaggle: {
-    totalSolved: Number,
-    easySolved: Number,
-    mediumSolved: Number,
-    hardSolved: Number,
-    ranking: Number,
-    contributionPoint: Number,
-  },
 
   updatedAt: {
     type: Date,

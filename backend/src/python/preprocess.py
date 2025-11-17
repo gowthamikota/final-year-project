@@ -23,8 +23,6 @@ def make_vec(profiles, resume):
         "ccProblems": clean_num(profiles["codechef"]["totalProblemsSolved"]),
         "ghStars": clean_num(profiles["github"]["totalStars"]),
         "ghCommits": clean_num(profiles["github"]["totalCommits"]),
-        "kgSolved": clean_num(profiles["kaggle"]["totalSolved"]),
-        "kgRank": clean_num(profiles["kaggle"]["ranking"]),
         "lcSolved": clean_num(profiles["leetcode"]["totalSolved"]),
         "lcRank": clean_num(profiles["leetcode"]["ranking"]),
         "resumeExp": clean_num(len(resume.get("experience", []))),
