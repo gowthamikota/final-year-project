@@ -49,7 +49,7 @@ async function mergeData(userId) {
 
     if (existing) {
         await combinedModel.updateOne({ userId }, body);
-        console.log("Data combined success")
+        console.log("Data merging completed")
     }
 
   const doc = new combinedModel(body);

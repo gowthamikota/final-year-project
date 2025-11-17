@@ -11,14 +11,10 @@ from bson import ObjectId
 
 load_dotenv()
 
-# Load embedding model
 model = SentenceTransformer("all-MiniLM-L6-v2")
 index = faiss.IndexFlatL2(384)
 
 def load_data(db, user_object_id):
-    """
-    Fetch combined profile & resume for a given user.
-    """
     profile = db.combineddatas.find_one({"userId": user_object_id})
     resume = db.resumedatas.find_one({"userId": user_object_id})
     return profile, resume
@@ -39,21 +35,15 @@ def build_resume_text(resume):
     """
 
 def embed(text):
-    """
-    Converts text → embedding vector
-    """
     return model.encode([text])[0].astype("float32")
 
 def main():
-
-    
     if len(sys.argv) < 2:
         print(json.dumps({"success": False, "error": "Missing userId"}))
         return
 
     raw_user_id = sys.argv[1]
 
-    
     try:
         user_object_id = ObjectId(raw_user_id)
     except Exception:
@@ -68,10 +58,6 @@ def main():
 
     client = MongoClient(mongo_url)
     db = client["Final_year_project"]
-
-    print("Writing to DB:", db.name, file=sys.stderr)
-    print("Existing collections:", db.list_collection_names(), file=sys.stderr)
-
    
     profile, resume = load_data(db, user_object_id)
 
@@ -110,7 +96,6 @@ def main():
     index.add(np.array([profile_vec]))
     index.add(np.array([resume_vec]))
 
-    # ----------- Final output ----------- #
     print(json.dumps({"success": True, "message": "Embeddings generated and saved"}))
 
 main()

@@ -5,7 +5,7 @@ const { uploader } = require("../middlewares/uploaderMiddleware");
 const { mergeData } = require("../services/mergeDoc");
 const { runPreprocessor } = require("../services/runprocessor");
 
-// triggering of the resumeparser.py and n8n happens here and store data in their respective collections
+
 resumeRouter.post("/resume/upload", uploader, async (req, res) => {
   try {
     const userId = req.user?._id || "674A9C000000000000000000";
@@ -30,14 +30,11 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
     }
 
     await mergeData(userId);
-    const out = await runPreprocessor(userId);
-
-    console.log("Processing completed", out);
+    await runPreprocessor(userId);
 
     return res.status(200).json({
       success: true,
-      message: "Resume uploaded, parsed, and workflows executed successfully",
-      parsedResume: req.parsedResume,
+      message: "scrapping and processing done"
     });
   } catch (err) {
     console.error("Error in resume/upload:", err.message);
@@ -46,10 +43,9 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
 });
 
 
-
-//gets processed data from the ProcessedData collection and sends this data to analyzeprofile.py file
 resumeRouter.get("/resume/:userId", async (req, res) => {
-    
+     
+
 });
 
 
