@@ -63,9 +63,14 @@ def main():
 
     profiles, resume = load_data(db, user_id)
 
-    if not profiles or not resume:
-        print("Data missing")
+    if not profiles:
+        print(json.dumps({"success": False, "error": "Combined profile missing"}))
         return
+
+    if not resume:
+        print(json.dumps({"success": False, "error": "Resume data missing"}))
+        return
+
 
     vec = make_vec(profiles, resume)
     save_vec(db, user_id, vec)
