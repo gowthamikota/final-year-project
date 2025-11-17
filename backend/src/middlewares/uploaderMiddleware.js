@@ -25,18 +25,14 @@ async function uploader(req, res, next) {
     }
 
     try {
-      const userId = req.user?._id || "674A9C000000000000000000";
+      const userId = req.user?._id;
       const filePath = req.file?.path;
 
       if (!filePath) return res.status(400).json({ error: "No file uploaded" });
-
-      console.log("Resume uploaded:", filePath);
-
     
       const parsed = await parser(filePath);
       console.log("Resume parsing completed");
-
-     
+      
       const savedResume = await resumeDataModel.create({
         userId,
         ...parsed,
