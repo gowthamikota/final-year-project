@@ -2,7 +2,7 @@ import sys
 import json
 import os
 from pymongo import MongoClient
-from datetime import datetime
+from datetime import datetime, UTC
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 import numpy as np
@@ -83,10 +83,10 @@ def main():
             "$set": {
                 "profileEmbedding": profile_vec.tolist(),
                 "resumeEmbedding": resume_vec.tolist(),
-                "updatedAt": datetime.utcnow()
+                "updatedAt": datetime.now(UTC)
             },
             "$setOnInsert": {
-                "createdAt": datetime.utcnow()
+                "createdAt": datetime.now(UTC)
             }
         },
         upsert=True

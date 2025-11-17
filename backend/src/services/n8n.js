@@ -46,6 +46,7 @@ async function triggerWorkflow(userId, profile, profileUrl) {
     });
 
     await newDoc.save();
+    console.log(`${profile} profile scrapping completed`);
     return { success: true, message: `${profile} data stored successfully` };
 
   } catch (err) {
