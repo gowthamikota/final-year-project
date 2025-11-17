@@ -15,7 +15,7 @@ index = faiss.IndexFlatL2(384)
 
 def load_data(db, user_id):
     profile = db.combineddatas.find_one({"userId": user_id})
-    resume = db.resumeparseddatas.find_one({"userId": user_id})
+    resume = db.resumedatas.find_one({"userId": user_id})
     return profile, resume
 
 def build_profile_text(profile):
