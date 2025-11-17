@@ -3,6 +3,7 @@ const resumeRouter = express.Router();
 const { triggerWorkflow } = require("../services/n8n");
 const { uploader } = require("../middlewares/uploaderMiddleware");
 const { mergeData } = require("../services/mergeDoc");
+const { runPreprocessor } = require("../services/runprocessor");
 
 // triggering of the resumeparser.py and n8n happens here and store data in their respective collections
 resumeRouter.post("/resume/upload", uploader, async (req, res) => {
@@ -29,6 +30,9 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
     }
 
     await mergeData(userId);
+    const out = await runPreprocessor(userId);
+
+    console.log("Processing completed", out);
 
     return res.status(200).json({
       success: true,

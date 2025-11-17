@@ -52,8 +52,10 @@ async function mergeData(userId) {
         console.log("Data combined success")
     }
 
-    const doc = new combinedModel(body);
-    await doc.save();
-    return body;
+  const doc = new combinedModel(body);
+  await doc.save();
+  return body;
 }
+
+module.exports = { mergeData };
 
