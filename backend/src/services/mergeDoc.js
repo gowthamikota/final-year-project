@@ -1,8 +1,8 @@
 const combinedModel = require("../models/combinedData");
-const codechefModel = require("../models/combinedData");
-const leetcodeModel = require("../models/combinedData");
-const githubModel = require("../models/combinedData");
-const codeforcesModel = require("../models/combinedData");
+const codechefModel = require("../models/codechefData");
+const leetcodeModel = require("../models/leetcodeData");
+const githubModel = require("../models/githubData");
+const codeforcesModel = require("../models/codeforcesData");
 
 
 async function mergeData(userId) {
