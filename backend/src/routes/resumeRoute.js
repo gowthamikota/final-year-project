@@ -43,12 +43,6 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
 });
 
 
-resumeRouter.get("/resume/:userId", async (req, res) => {
-     
-
-});
-
-
 module.exports = resumeRouter;
 
 

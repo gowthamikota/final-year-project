@@ -36,8 +36,4 @@ profileRouter.delete("/profile/delete", async (req, res) => {
   
 });
 
-profileRouter.get("/profile/history", async (req, res) => {
-  
-});
-
 module.exports = profileRouter;
