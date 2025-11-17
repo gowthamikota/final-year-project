@@ -4,64 +4,56 @@ import os
 from pymongo import MongoClient
 from datetime import datetime
 from dotenv import load_dotenv
+from sentence_transformers import SentenceTransformer
+import numpy as np
+import faiss
 
 load_dotenv()
 
+model = SentenceTransformer("all-MiniLM-L6-v2")
+index = faiss.IndexFlatL2(384)  
+
 def load_data(db, user_id):
-    profiles = db.combineddatas.find_one({"userId": user_id})
-    resume = db.resumedatas.find_one({"userId": user_id})
-    return profiles, resume
+    profile = db.combineddatas.find_one({"userId": user_id})
+    resume = db.resumeparseddatas.find_one({"userId": user_id})
+    return profile, resume
 
-def clean_num(x):
-    return x if isinstance(x, (int, float)) else 0
+def build_profile_text(profile):
+    return f"""
+    Codeforces rating {profile['codeforces']['rating']},
+    Codechef rating {profile['codechef']['rating']},
+    Github stars {profile['github']['totalStars']} commits {profile['github']['totalCommits']},
+    LeetCode solved {profile['leetcode']['totalSolved']}
+    """
 
-def make_vec(profiles, resume):
-    v = {
-        "cfRating": clean_num(profiles["codeforces"]["rating"]),
-        "cfMax": clean_num(profiles["codeforces"]["maxRating"]),
-        "ccRating": clean_num(profiles["codechef"]["rating"]),
-        "ccProblems": clean_num(profiles["codechef"]["totalProblemsSolved"]),
-        "ghStars": clean_num(profiles["github"]["totalStars"]),
-        "ghCommits": clean_num(profiles["github"]["totalCommits"]),
-        "lcSolved": clean_num(profiles["leetcode"]["totalSolved"]),
-        "lcRank": clean_num(profiles["leetcode"]["ranking"]),
-        "resumeExp": clean_num(len(resume.get("experience", []))),
-        "resumeProj": clean_num(len(resume.get("projects", []))),
-        "resumeSkills": clean_num(len(resume.get("skills", [])))
-    }
-    return v
+def build_resume_text(resume):
+    return f"""
+    Skills: {', '.join(resume.get('skills', []))}
+    Experience: {' '.join(resume.get('experience', []))}
+    Projects: {' '.join(resume.get('projects', []))}
+    """
 
-def save_vec(db, user_id, vec):
-    db.processeddatas.update_one(
-        {"userId": user_id},
-        {
-            "$set": {
-                "userId": user_id,
-                "vector": vec,
-                "updatedAt": datetime.utcnow()
-            }
-        },
-        upsert=True
-    )
+def embed(text):
+    return model.encode([text])[0].astype("float32")
 
 def main():
+
     if len(sys.argv) < 2:
-        print("Missing userId")
+        print(json.dumps({"success": False, "error": "Missing userId"}))
         return
 
     user_id = sys.argv[1]
-
     mongo_url = os.getenv("MONGODB_CONNECTION")
     if not mongo_url:
-        print("Missing MONGO_URL in .env")
+        print(json.dumps({"success": False, "error": "Missing MONGODB_CONNECTION"}))
         return
 
     client = MongoClient(mongo_url)
     db = client["Final_year_project"]
 
-    profiles, resume = load_data(db, user_id)
+    profile, resume = load_data(db, user_id)
 
-    if not profiles:
+    if not profile:
         print(json.dumps({"success": False, "error": "Combined profile missing"}))
         return
 
@@ -69,9 +61,15 @@ def main():
         print(json.dumps({"success": False, "error": "Resume data missing"}))
         return
 
+    profile_text = build_profile_text(profile)
+    resume_text = build_resume_text(resume)
 
-    vec = make_vec(profiles, resume)
-    save_vec(db, user_id, vec)
+    profile_vec = embed(profile_text)
+    resume_vec = embed(resume_text)
+
+
+    index.add(np.array([profile_vec]))
+    index.add(np.array([resume_vec]))
 
     print(json.dumps({"success": True}))
 

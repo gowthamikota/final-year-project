@@ -1,2 +1,16 @@
-node_modules
+node_modules/
 .env
+
+# Python venv
+**/venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Uploads
+uploads/
+src/uploads/
+
+# FAISS data
+*.bin

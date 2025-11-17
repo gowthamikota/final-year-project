@@ -1,0 +1,7 @@
+pymongo
+python-dotenv
+sentence-transformers
+faiss-cpu
+PyPDF2
+transformers
+torch

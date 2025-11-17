@@ -5,7 +5,13 @@ function runPreprocessor(userId) {
   return new Promise((resolve, reject) => {
     const script = path.join(__dirname, "../python/preprocess.py");
 
-    execFile("py", ["-3", script, userId], (error, stdout, stderr) => {
+  
+    const pythonPath = path.join(
+      __dirname,
+      "../python/venv/Scripts/python.exe"
+    );
+
+    execFile(pythonPath, [script, userId], (error, stdout, stderr) => {
       console.log("PYTHON STDOUT:", stdout);
       console.log("PYTHON STDERR:", stderr);
 
