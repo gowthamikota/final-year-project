@@ -1,18 +1,29 @@
 const mongoose = require("mongoose");
 
-const finalResultSchema = new mongoose.Schema(
+const FinalResultSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
       ref: "users",
-    }
+      unique: true,
+    },
+
+    scores: {
+      github: { type: Number, required: true },
+      leetcode: { type: Number, required: true },
+      codeforces: { type: Number, required: true },
+      codechef: { type: Number, required: true },
+      resume: { type: Number, required: true },
+      activity: { type: Number, required: true },
+    },
+
+    finalScore: {
+      type: Number,
+      required: true,
+    },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-const finalResultModel = mongoose.model("finalresults", finalResultSchema);
-
-module.exports = finalResultModel;
+module.exports = mongoose.model("finalresults", FinalResultSchema);
