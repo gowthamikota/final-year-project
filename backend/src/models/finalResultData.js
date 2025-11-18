@@ -26,4 +26,6 @@ const FinalResultSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("finalresults", FinalResultSchema);
+const finalResults = mongoose.model("finalresults", FinalResultSchema);
+
+module.exports = finalResults;
