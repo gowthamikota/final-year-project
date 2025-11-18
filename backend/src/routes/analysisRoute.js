@@ -1,18 +1,23 @@
 const express = require("express");
 const analysisRouter = express.Router();
-const finalResults = require("../models/finalResultData"); 
+const FinalResults = require("../models/finalResultData");
 const path = require("path");
 const { execFile } = require("child_process");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 
 analysisRouter.post("/analysis/run", async (req, res) => {
   try {
-    const  userId  = req.body?.userId;
+    const userId = req.body?.userId;
 
     if (!userId) {
-      return res
-        .status(400)
-        .json({ success: false, error: "userId is missing" });
+      return res.status(400).json({
+        success: false,
+        error: "userId is missing",
+      });
     }
 
     const scriptPath = path.join(__dirname, "../python/analyzeProfile.py");
@@ -24,14 +29,13 @@ analysisRouter.post("/analysis/run", async (req, res) => {
     execFile(pythonPath, [scriptPath, userId], (error, stdout, stderr) => {
       if (error) {
         console.error("Python Error:", error);
-        return res
-          .status(500)
-          .json({ success: false, error: "Analysis failed" });
+        return res.status(500).json({
+          success: false,
+          error: "Analysis failed",
+        });
       }
 
-      if (stderr) {
-        console.error("PY STDERR:", stderr);
-      }
+      if (stderr) console.error("PY STDERR:", stderr);
 
       let pyOutput;
       try {
@@ -52,7 +56,10 @@ analysisRouter.post("/analysis/run", async (req, res) => {
     });
   } catch (err) {
     console.error("Server error:", err);
-    res.status(500).json({ success: false, error: "Server error" });
+    return res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
   }
 });
 
@@ -62,38 +69,38 @@ analysisRouter.get("/analysis/:userId", async (req, res) => {
     const { userId } = req.params;
     const { jobRole } = req.query;
 
-    const result = await finalResults.findOne({ userId });
+    const result = await FinalResults.findOne({ userId });
 
     if (!result) {
-      return res
-        .status(404)
-        .json({ success: false, error: "No analysis found" });
+      return res.status(404).json({
+        success: false,
+        error: "No analysis found",
+      });
     }
 
-   
     const llmPrompt = `
-The following developer performance scores were generated:
+Developer performance scores:
 
 ${JSON.stringify(result.scores, null, 2)}
 
 Final Score: ${result.finalScore}
 
-They are aiming for job role: ${jobRole || "Not specified"}.
+Target Job Role: ${jobRole || "Not specified"}
 
-Generate:
-- Key strengths
-- Missing skills
-- How to improve for the target job
-- Resume improvements
-Keep it short, clear, and useful.
+Generate the following:
+- 3–4 key strengths
+- Weak/missing skills
+- 4 improvement steps for the target role
+- Resume improvement suggestions
+
+Keep it short, clear, and helpful.
     `;
 
-    const suggestionsResponse = await global.openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: llmPrompt }],
-    });
+    
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    const suggestions = suggestionsResponse.choices[0].message.content;
+    const response = await model.generateContent(llmPrompt);
+    const suggestions = response.response.text();
 
     return res.json({
       success: true,
@@ -102,7 +109,10 @@ Keep it short, clear, and useful.
     });
   } catch (err) {
     console.error("Server error:", err);
-    res.status(500).json({ success: false, error: "Server error" });
+    return res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
   }
 });
 
