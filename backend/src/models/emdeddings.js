@@ -9,12 +9,32 @@ const EmbeddingSchema = new mongoose.Schema(
       ref: "users",
     },
 
-    profileEmbedding: {
+    github_embed: {
       type: [Number],
       required: true,
     },
 
-    resumeEmbedding: {
+    leetcode_embed: {
+      type: [Number],
+      required: true,
+    },
+
+    codeforces_embed: {
+      type: [Number],
+      required: true,
+    },
+
+    codechef_embed: {
+      type: [Number],
+      required: true,
+    },
+
+    resume_embed: {
+      type: [Number],
+      required: true,
+    },
+
+    activity_embed: {
       type: [Number],
       required: true,
     },
