@@ -7,7 +7,7 @@ const { execFile } = require("child_process");
 
 analysisRouter.post("/analysis/run", async (req, res) => {
   try {
-    const { userId } = req.body;
+    const  userId  = req.body?.userId;
 
     if (!userId) {
       return res
