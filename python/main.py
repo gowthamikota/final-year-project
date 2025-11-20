@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
-from analyzerprofile import analyze_profile
-from process import preprocess_user
+from analyzeprofile import analyze_profile
+from preprocess import preprocess_user
 from resumeparser import parse_resume
 
 app = Flask(__name__)

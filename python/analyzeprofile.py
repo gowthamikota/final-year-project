@@ -12,14 +12,12 @@ load_dotenv()
 MONGO_URI = os.getenv("MONGODB_CONNECTION")
 DB_NAME = os.getenv("DB_NAME", "Final_year_project")
 
-# -----------------------------
-# ✔ FastEmbed model (very light)
-# -----------------------------
+
 embedder = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
 
 
 def embed_text(text):
-    return embedder.embed([text])[0]   # returns vector list
+    return embedder.embed([text])[0] 
 
 
 def normalize(score):
@@ -66,7 +64,7 @@ def analyze_profile(user_id):
         "activity": np.array(user_embeds["activity_embed"]),
     }
 
-    # ✔ Embedding ideal profiles using FastEmbed
+   
     ideal_vectors = {key: embed_text(val) for key, val in ideal_profiles.items()}
 
     scores = {}
