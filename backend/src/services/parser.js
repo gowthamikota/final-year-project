@@ -1,24 +1,17 @@
-const { execFile } = require("child_process");
-const path = require("path");
+const axios = require("axios");
 
-function parser(filePath) {
-  return new Promise((resolve, reject) => {
-    const scriptPath = path.join(__dirname, "../python/resumeparser.py");
+async function parser(filePath) {
+  try {
+    const response = await axios.post(
+      `${process.env.PYTHON_SERVICE_URL}/parse-resume`,
+      { filePath }
+    );
 
-    execFile("python", [scriptPath, filePath], (error, stdout, stderr) => {
-      if (error) {
-        console.error("Python Error:", stderr || error.message);
-        return reject(error);
-      }
-
-      try {
-        const parsed = JSON.parse(stdout);
-        resolve(parsed);
-      } catch (err) {
-        reject("Invalid JSON output from resume parser");
-      }
-    });
-  });
+    return response.data;
+  } catch (err) {
+    console.error("Python Service Error:", err.response?.data || err.message);
+    throw new Error("Failed to parse resume");
+  }
 }
 
 module.exports = { parser };
