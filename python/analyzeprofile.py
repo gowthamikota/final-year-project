@@ -1,5 +1,4 @@
 import os
-import sys
 import json
 import numpy as np
 from dotenv import load_dotenv
@@ -8,15 +7,12 @@ from sklearn.metrics.pairwise import cosine_similarity
 from bson import ObjectId
 from sentence_transformers import SentenceTransformer
 
-
 load_dotenv()
 
 MONGO_URI = os.getenv("MONGODB_CONNECTION")
 DB_NAME = os.getenv("DB_NAME", "Final_year_project")
 
-
 model = SentenceTransformer("all-MiniLM-L6-v2")
-
 
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client[DB_NAME]
@@ -47,20 +43,18 @@ ideal_profiles = {
 }
 
 
-def analyze_profile(user_id):
 
+def analyze_profile(user_id):
     try:
         mongo_id = ObjectId(user_id)
     except:
         return {"success": False, "message": "Invalid ObjectId"}
-
 
     user_embeds = embeddings_collection.find_one({"userId": mongo_id})
 
     if not user_embeds:
         return {"success": False, "message": "No embeddings found for user"}
 
-   
     platform_vectors = {
         "github": np.array(user_embeds["github_embed"]),
         "leetcode": np.array(user_embeds["leetcode_embed"]),
@@ -70,19 +64,14 @@ def analyze_profile(user_id):
         "activity": np.array(user_embeds["activity_embed"]),
     }
 
-   
     ideal_vectors = {k: embed_text(txt) for k, txt in ideal_profiles.items()}
 
-    
     scores = {}
-
     for category, user_vec in platform_vectors.items():
         similarity = compute_similarity(user_vec, ideal_vectors[category])
         scores[category] = normalize(similarity)
 
-  
     final_score = round(sum(scores.values()) / len(scores), 2)
-
 
     finalresults_collection.update_one(
         {"userId": mongo_id},
@@ -90,14 +79,4 @@ def analyze_profile(user_id):
         upsert=True
     )
 
-    return {
-        "success": True,
-        "scores": scores,
-        "finalScore": final_score
-    }
-
-
-if __name__ == "__main__":
-    user_id = sys.argv[1]
-    result = analyze_profile(user_id)
-    print(json.dumps(result))
+    return {"success": True, "scores": scores, "finalScore": final_score}

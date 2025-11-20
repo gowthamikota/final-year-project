@@ -1,8 +1,9 @@
+fastapi
+uvicorn
 pymongo
-python-dotenv
+numpy
+pandas
 sentence-transformers
-faiss-cpu
+python-dotenv
+scikit-learn
 PyPDF2
-transformers
-torch
-OpenAI
