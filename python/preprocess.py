@@ -1,22 +1,23 @@
-import json
 import os
+import json
 from pymongo import MongoClient
 from datetime import datetime, UTC
 from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
 from bson import ObjectId
-import numpy as np
+from fastembed import TextEmbedding
 
 load_dotenv()
 
 MONGO_URL = os.getenv("MONGODB_CONNECTION")
 DB_NAME = "Final_year_project"
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
+
+embedder = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
 
 
 def embed(text):
-    return model.encode([text])[0].astype("float32")
+    """Generate vector embedding using FastEmbed."""
+    return embedder.embed([text])[0]   # returns Python list
 
 
 def load_data(db, user_object_id):
@@ -25,16 +26,11 @@ def load_data(db, user_object_id):
     return profile, resume
 
 
-
 def preprocess_user(user_id):
-
     try:
         user_object_id = ObjectId(user_id)
     except:
         return {"success": False, "error": "Invalid ObjectId"}
-
-    if not MONGO_URL:
-        return {"success": False, "error": "Missing MONGODB_CONNECTION"}
 
     client = MongoClient(MONGO_URL)
     db = client[DB_NAME]
@@ -43,7 +39,6 @@ def preprocess_user(user_id):
 
     if not profile:
         return {"success": False, "error": "Combined profile missing"}
-
     if not resume:
         return {"success": False, "error": "Resume data missing"}
 
@@ -96,6 +91,7 @@ def preprocess_user(user_id):
     CodeChef Rating: {cc.get('rating')}
     """
 
+    # ✔ Embed using FastEmbed
     github_vec = embed(github_block)
     leetcode_vec = embed(leetcode_block)
     codeforces_vec = embed(codeforces_block)
@@ -107,17 +103,17 @@ def preprocess_user(user_id):
         {"userId": user_object_id},
         {
             "$set": {
-                "github_embed": github_vec.tolist(),
-                "leetcode_embed": leetcode_vec.tolist(),
-                "codeforces_embed": codeforces_vec.tolist(),
-                "codechef_embed": codechef_vec.tolist(),
-                "resume_embed": resume_vec.tolist(),
-                "activity_embed": activity_vec.tolist(),
+                "github_embed": github_vec,
+                "leetcode_embed": leetcode_vec,
+                "codeforces_embed": codeforces_vec,
+                "codechef_embed": codechef_vec,
+                "resume_embed": resume_vec,
+                "activity_embed": activity_vec,
                 "updatedAt": datetime.now(UTC),
             },
             "$setOnInsert": {"createdAt": datetime.now(UTC)},
         },
-        upsert=True,
+        upsert=True
     )
 
     return {"success": True, "message": "Platform-wise embeddings generated and saved"}

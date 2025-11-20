@@ -5,24 +5,21 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 from sklearn.metrics.pairwise import cosine_similarity
 from bson import ObjectId
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 load_dotenv()
 
 MONGO_URI = os.getenv("MONGODB_CONNECTION")
 DB_NAME = os.getenv("DB_NAME", "Final_year_project")
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
-
-mongo_client = MongoClient(MONGO_URI)
-db = mongo_client[DB_NAME]
-
-embeddings_collection = db["embeddings"]
-finalresults_collection = db["finalresults"]
+# -----------------------------
+# ✔ FastEmbed model (very light)
+# -----------------------------
+embedder = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
 
 
 def embed_text(text):
-    return model.encode([text])[0]
+    return embedder.embed([text])[0]   # returns vector list
 
 
 def normalize(score):
@@ -33,6 +30,12 @@ def compute_similarity(vec1, vec2):
     return cosine_similarity([vec1], [vec2])[0][0]
 
 
+mongo_client = MongoClient(MONGO_URI)
+db = mongo_client[DB_NAME]
+
+embeddings_collection = db["embeddings"]
+finalresults_collection = db["finalresults"]
+
 ideal_profiles = {
     "github": "Strong GitHub portfolio with many commits, stars, and clean projects.",
     "leetcode": "Active problem solver with strong understanding of DSA.",
@@ -41,7 +44,6 @@ ideal_profiles = {
     "resume": "Well-structured resume with clear projects and achievements.",
     "activity": "Highly active coder with regular practice."
 }
-
 
 
 def analyze_profile(user_id):
@@ -64,7 +66,8 @@ def analyze_profile(user_id):
         "activity": np.array(user_embeds["activity_embed"]),
     }
 
-    ideal_vectors = {k: embed_text(txt) for k, txt in ideal_profiles.items()}
+    # ✔ Embedding ideal profiles using FastEmbed
+    ideal_vectors = {key: embed_text(val) for key, val in ideal_profiles.items()}
 
     scores = {}
     for category, user_vec in platform_vectors.items():
