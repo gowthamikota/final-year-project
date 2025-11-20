@@ -1,28 +1,51 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from analyzeprofile import analyze_profile
-from preprocess import preprocess_user
+from flask import Flask, request, jsonify
+from analyzerprofile import analyze_profile
+from process import preprocess_user
 from resumeparser import parse_resume
 
-app = FastAPI()
-
-class UserIdRequest(BaseModel):
-    userId: str
-
-class FilePathRequest(BaseModel):
-    filePath: str
+app = Flask(__name__)
 
 
-@app.post("/preprocess")
-def preprocess(req: UserIdRequest):
-    return preprocess_user(req.userId)
+@app.route("/preprocess", methods=["POST"])
+def preprocess():
+    data = request.get_json()
+    user_id = data.get("userId")
+
+    if not user_id:
+        return jsonify({"error": "Missing userId"}), 400
+
+    result = preprocess_user(user_id)
+    return jsonify(result)
 
 
-@app.post("/analyze-profile")
-def analyze(req: UserIdRequest):
-    return analyze_profile(req.userId)
+@app.route("/analyze-profile", methods=["POST"])
+def analyze():
+    data = request.get_json()
+    user_id = data.get("userId")
+
+    if not user_id:
+        return jsonify({"error": "Missing userId"}), 400
+
+    result = analyze_profile(user_id)
+    return jsonify(result)
 
 
-@app.post("/parse-resume")
-def resume(req: FilePathRequest):
-    return parse_resume(req.filePath)
+@app.route("/parse-resume", methods=["POST"])
+def resume():
+    data = request.get_json()
+    file_path = data.get("filePath")
+
+    if not file_path:
+        return jsonify({"error": "Missing filePath"}), 400
+
+    result = parse_resume(file_path)
+    return jsonify(result)
+
+
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"status": "Python Flask API is running"})
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000)
