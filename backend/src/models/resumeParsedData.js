@@ -11,11 +11,16 @@ const resumeDataSchema = new mongoose.Schema(
     email: String,
     phone: String,
     skills: [String],
+    education: [String],
+    experience: [String],
+    projects: [String],
+    certifications: [String],
+    achievements: [String],
     raw_text: String,
     filePath: String,
   },
   { timestamps: true }
 );
 
-const resumeDataModel = mongoose.model("resumeData", resumeDataSchema);
+const resumeDataModel = mongoose.model("resumeData", resumeDataSchema, "resumedatas");
 module.exports = resumeDataModel;

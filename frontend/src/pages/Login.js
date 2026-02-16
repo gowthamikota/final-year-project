@@ -16,9 +16,6 @@ function Login() {
     setError("");
     setIsLoading(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
     // Basic validation
     if (!email || !password) {
       setError("Please enter both email and password.");
@@ -34,16 +31,13 @@ function Login() {
       return;
     }
 
-    // For demo purposes, accept any non-empty credentials
-    // In real app, this would be API authentication
-    const userData = {
-      name: email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1),
-      email: email,
-    };
-    
-    login(userData);
-    setIsLoading(false);
-    navigate("/");
+    try {
+      await login(email, password);
+      navigate("/");
+    } catch (err) {
+      setError(err.message || "Login failed. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   const togglePasswordVisibility = () => {

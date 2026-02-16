@@ -17,7 +17,8 @@ const profileModels = {
 
 async function triggerWorkflow(userId, profile, profileUrl) {
   try {
-    const webhookUrl = `https://n8n-service-t8p9.onrender.com/`;
+    const baseUrl = process.env.N8N_WEBHOOK_BASE_URL || "https://n8n-service-t8p9.onrender.com";
+    const webhookUrl = `${baseUrl}/webhook/${profile}`;
   
     if (!profileUrl || typeof profileUrl !== "string") {
       throw new Error(`Invalid or missing profileUrl for profile: ${profile}`);

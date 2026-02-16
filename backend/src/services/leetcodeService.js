@@ -38,7 +38,7 @@ async function getLeetCodeData(username) {
   });
   return response.data;
 }
-async function saveLeetCodeProfile(username) {
+async function saveLeetCodeProfile(username, userId) {
   const data = await getLeetCodeData(username);
 
   const user = data.data.matchedUser;
@@ -51,7 +51,12 @@ async function saveLeetCodeProfile(username) {
   const medium = ac.find(x => x.difficulty === "Medium");
   const hard = ac.find(x => x.difficulty === "Hard");
 
+  if (!userId) {
+    throw new Error("userId is required to save LeetCode profile");
+  }
+
   const profile = new LeetCodeProfile({
+    userId,
     totalSolved: submissions.count,
     totalSubmissions: submissions,
     easySolved: easy.count,

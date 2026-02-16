@@ -8,14 +8,20 @@ app = Flask(__name__)
 
 @app.route("/preprocess", methods=["POST"])
 def preprocess():
-    data = request.get_json()
-    user_id = data.get("userId")
+    try:
+        data = request.get_json()
+        user_id = data.get("userId")
 
-    if not user_id:
-        return jsonify({"error": "Missing userId"}), 400
+        if not user_id:
+            return jsonify({"error": "Missing userId"}), 400
 
-    result = preprocess_user(user_id)
-    return jsonify(result)
+        result = preprocess_user(user_id)
+        return jsonify(result)
+    except Exception as e:
+        print(f"Preprocess Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e), "success": False}), 500
 
 
 @app.route("/analyze-profile", methods=["POST"])

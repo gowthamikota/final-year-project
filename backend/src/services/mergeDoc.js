@@ -45,16 +45,13 @@ async function mergeData(userId) {
       updatedAt: new Date(),
     };
 
-    const existing = await combinedModel.findOne({ userId });
-
-    if (existing) {
-        await combinedModel.updateOne({ userId }, body);
-        console.log("Data merging completed")
-    }
-
-  const doc = new combinedModel(body);
-  await doc.save();
-  return body;
+    const result = await combinedModel.findOneAndUpdate(
+      { userId },
+      body,
+      { upsert: true, new: true }
+    );
+    console.log("Data merged successfully (upserted)");
+    return result;
 }
 
 module.exports = { mergeData };

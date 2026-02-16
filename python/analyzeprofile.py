@@ -10,7 +10,7 @@ from fastembed import TextEmbedding
 load_dotenv()
 
 MONGO_URI = os.getenv("MONGODB_CONNECTION")
-DB_NAME = os.getenv("DB_NAME", "Final_year_project")
+DB_NAME = os.getenv("DB_NAME", "final_year_project")
 
 
 embedder = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")

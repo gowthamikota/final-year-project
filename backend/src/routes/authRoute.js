@@ -18,10 +18,10 @@ authRouter.post("/signup", async (req, res) => {
       password: passwordhash,
     });
     await user.save();
-    return res.status(200).send("User Created Successfully");
+    return res.status(200).json({ success: true, message: "User Created Successfully", user });
   } catch (err) {
     console.error("Error Detected:", err.message);
-    return res.status(500).send("Error:" + err.message);
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -40,39 +40,36 @@ authRouter.post("/login", async (req, res) => {
     const isPasswordValid = await user.validatePassword(password);
     if (isPasswordValid) {
       const token = await user.getJWT();
-      const origin = req.headers.origin || "";
-      const isLocal = /localhost|127\.0\.0\.1/.test(origin);
-      const isProd = !isLocal;
-
+      // Use NODE_ENV for security decisions, not origin header
+      const isProduction = process.env.NODE_ENV === "production";
+      
       res.cookie("token", token, {
         httpOnly: true,
-        secure: isProd,
-        sameSite: isProd ? "None" : "Lax",
+        secure: isProduction,
+        sameSite: isProduction ? "None" : "Lax",
         expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
-      res.send(user);
+      res.status(200).json({ success: true, user, token });
     } else {
       throw new Error("Invalid password");
     }
   } catch (err) {
-    res.status(401).send("Error: " + err.message);
+    res.status(401).json({ success: false, error: err.message });
   }
 });
 
 authRouter.post("/logout", async (req, res) => {
   try {
-    const origin = req.headers.origin || "";
-    const isLocal = /localhost|127\.0\.0\.1/.test(origin);
-    const isProd = !isLocal;
+    const isProduction = process.env.NODE_ENV === "production";
     res.cookie("token", null, {
       httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? "None" : "Lax",
+      secure: isProduction,
+      sameSite: isProduction ? "None" : "Lax",
       expires: new Date(Date.now()),
     });
-    res.send("Logout Successfully");
+    res.status(200).json({ success: true, message: "Logout Successfully" });
   } catch (err) {
-    res.send("Error:" + err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 module.exports = authRouter;
