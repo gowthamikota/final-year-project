@@ -12,7 +12,7 @@ const codechefProfileSchema = new mongoose.Schema(
     rating: { type: Number, required: true },
     contestsParticipated: { type: Number, required: true },
     stars: { type: Number, required: true },
-    ranks: { type: Number, required: true },
+    highestRating: { type: Number },
     totalProblemsSolved: { type: Number, required: true },
     ratingConsistency: { type: Number, required: true },
   },
