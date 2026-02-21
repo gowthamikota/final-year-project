@@ -10,11 +10,13 @@ const gitHubDataSchema = new mongoose.Schema(
 
     name: { type: String, required: true },
     rank: { type: String },
+    repoCount: { type: Number },
     totalStars: { type: Number },
     totalCommits: { type: Number },
     totalPRs: { type: Number },
     totalIssues: { type: Number },
     contributedTo: { type: Number },
+    languages: [{ type: String }],
     streakData: [
       {
         totalContributions: { type: Number },
