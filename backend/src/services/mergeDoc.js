@@ -34,6 +34,8 @@ async function mergeData(userId) {
         totalPRs: gh?.totalPRs || 0,
         totalIssues: gh?.totalIssues || 0,
         contributedTo: gh?.contributedTo || 0,
+        repoCount: gh?.repoCount || 0,
+        languages: gh?.languages || [],
       },
       leetcode: {
         totalSolved: lc?.totalSolved || 0,
