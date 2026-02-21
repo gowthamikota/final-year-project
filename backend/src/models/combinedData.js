@@ -27,6 +27,8 @@ const combinedDataSchema = new mongoose.Schema({
     totalPRs: Number,
     totalIssues: Number,
     contributedTo: Number,
+    repoCount: Number,
+    languages: [String],
   },
 
   leetcode: {
