@@ -3,13 +3,13 @@ const axios = require("axios");
 async function runPreprocessor(userId) {
   try {
     const pythonServiceUrl = process.env.PYTHON_SERVICE_URL || "http://localhost:8000";
-    
+
     console.log(`[preprocessor] Starting for user ${userId}`);
-    
+
     const response = await axios.post(
       `${pythonServiceUrl}/preprocess`,
       { userId },
-      { timeout: 60000 } // 60 second timeout for embedding
+      { timeout: 60000 }
     );
 
     if (response.data?.success) {

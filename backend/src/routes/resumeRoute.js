@@ -1,15 +1,31 @@
 const express = require("express");
 const resumeRouter = express.Router();
-const { triggerWorkflow } = require("../services/n8n");
+
 const { uploader } = require("../middlewares/uploaderMiddleware");
-const { mergeData } = require("../services/mergeDoc");
+const { mergeData } = require("../services/mergeDocs");
 const { runPreprocessor } = require("../services/runprocessor");
 const resumeDataModel = require("../models/resumeParsedData");
 
+const githubModel = require("../models/githubData");
+const leetcodeModel = require("../models/leetcodeData");
+const codeforcesModel = require("../models/codeforcesData");
+const codechefModel = require("../models/codechefData");
+
+const { fetchGithub } = require("../services/platforms/githubService");
+const { fetchLeetcode } = require("../services/platforms/leetcodeService");
+const { fetchCodeforces } = require("../services/platforms/codeforcesService");
+const { fetchCodechef } = require("../services/platforms/codechefService");
 
 resumeRouter.post("/resume/upload", uploader, async (req, res) => {
   try {
     const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized user",
+      });
+    }
 
     if (!userId) {
       console.error("User not authenticated in resume/upload");
@@ -44,6 +60,7 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
 
     // Handle profile scraping with URLs
     let profileUrls = [];
+
     try {
       if (typeof req.body.profileUrls === "string") {
         profileUrls = JSON.parse(req.body.profileUrls);
@@ -63,18 +80,35 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
     let profilesFailed = 0;
 
     for (const { profile, profileUrl } of profileUrls) {
-      if (!profileUrl) {
-        console.warn(`Skipping ${profile} - missing profileUrl`);
-        continue;
-      }
-      try {
-        console.log(`Queuing workflow for ${profile}: ${profileUrl}`);
-        await triggerWorkflow(userId, profile, profileUrl);
-        profilesQueued++;
-        console.log(`Successfully queued ${profile} workflow`);
-      } catch (workflowErr) {
-        profilesFailed++;
-        console.warn(`Failed to queue ${profile} workflow:`, workflowErr.message);
+      if (!profileUrl) continue;
+
+      const username = profileUrl.split("/").filter(Boolean).pop();
+
+      let data;
+
+      switch (profile) {
+        case "github":
+          data = await fetchGithub(username);
+          await githubModel.create({ userId, ...data });
+          break;
+
+        case "leetcode":
+          data = await fetchLeetcode(username);
+          await leetcodeModel.create({ userId, ...data });
+          break;
+
+        case "codeforces":
+          data = await fetchCodeforces(username);
+          await codeforcesModel.create({ userId, ...data });
+          break;
+
+        case "codechef":
+          data = await fetchCodechef(username);
+          await codechefModel.create({ userId, ...data });
+          break;
+
+        default:
+          console.warn(`Unsupported profile type: ${profile}`);
       }
     }
 
@@ -98,60 +132,16 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
     // Return success immediately (don't wait for preprocessing)
     return res.status(200).json({
       success: true,
-      message: `Resume uploaded successfully. ${profilesQueued} profile(s) queued for processing. Analysis will be available shortly.`,
-      data: {
-        resumeParsed: true,
-        profilesQueued,
-        profilesFailed
-      }
+      message: "Scraping and processing completed",
     });
+
   } catch (err) {
     console.error("Error in resume/upload:", err.message);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      error: err.message 
-    });
-  }
-});
-
-// Get parsed resume data for a user
-resumeRouter.get("/resume/parsed/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    
-    const resumeData = await resumeDataModel.findOne({ userId });
-    
-    if (!resumeData) {
-      return res.status(404).json({
-        success: false,
-        error: "No resume data found"
-      });
-    }
-    
-    return res.status(200).json({
-      success: true,
-      data: {
-        skills: resumeData.skills || [],
-        name: resumeData.name || "",
-        email: resumeData.email || "",
-        phone: resumeData.phone || "",
-        education: resumeData.education || [],
-        experience: resumeData.experience || [],
-        projects: resumeData.projects || [],
-        certifications: resumeData.certifications || [],
-        achievements: resumeData.achievements || [],
-      }
-    });
-  } catch (err) {
-    console.error("Error fetching resume data:", err.message);
-    return res.status(500).json({ 
-      success: false,
-      error: err.message 
+      error: err.message,
     });
   }
 });
 
 module.exports = resumeRouter;
-
-
-

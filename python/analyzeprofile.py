@@ -1,5 +1,4 @@
 import os
-import json
 import numpy as np
 from dotenv import load_dotenv
 from pymongo import MongoClient
@@ -12,12 +11,11 @@ load_dotenv()
 MONGO_URI = os.getenv("MONGODB_CONNECTION")
 DB_NAME = os.getenv("DB_NAME", "final_year_project")
 
-
 embedder = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
 
 
 def embed_text(text):
-    return embedder.embed([text])[0] 
+    return embedder.embed([text])[0]
 
 
 def normalize(score):
@@ -34,14 +32,17 @@ db = mongo_client[DB_NAME]
 embeddings_collection = db["embeddings"]
 finalresults_collection = db["finalresults"]
 
+
 ideal_profiles = {
-    "github": "Strong GitHub portfolio with many commits, stars, and clean projects.",
-    "leetcode": "Active problem solver with strong understanding of DSA.",
-    "codeforces": "Competitive programmer with rating and contest experience.",
-    "codechef": "Good competitive coding performance and consistent ratings.",
-    "resume": "Well-structured resume with clear projects and achievements.",
-    "activity": "Highly active coder with regular practice."
+    "github": "Strong GitHub profile with followers, stars, forks, pull requests, and diverse languages.",
+    "leetcode": "Active problem solver with strong data structures and algorithms skills.",
+    "codeforces": "Competitive programmer with high rating and contest participation.",
+    "codechef": "Consistent competitive coder with good ratings and contest experience.",
+    "resume": "Well-structured resume highlighting skills, projects, and achievements clearly.",
+    "activity": "Highly active developer with consistent coding practice across platforms."
 }
+
+ideal_vectors = {key: embed_text(val) for key, val in ideal_profiles.items()}
 
 
 def analyze_profile(user_id):
@@ -55,24 +56,41 @@ def analyze_profile(user_id):
     if not user_embeds:
         return {"success": False, "message": "No embeddings found for user"}
 
-    platform_vectors = {
-        "github": np.array(user_embeds["github_embed"]),
-        "leetcode": np.array(user_embeds["leetcode_embed"]),
-        "codeforces": np.array(user_embeds["codeforces_embed"]),
-        "codechef": np.array(user_embeds["codechef_embed"]),
-        "resume": np.array(user_embeds["resume_embed"]),
-        "activity": np.array(user_embeds["activity_embed"]),
-    }
-
-   
-    ideal_vectors = {key: embed_text(val) for key, val in ideal_profiles.items()}
+    try:
+        platform_vectors = {
+            "github": np.array(user_embeds.get("github_embed", [])),
+            "leetcode": np.array(user_embeds.get("leetcode_embed", [])),
+            "codeforces": np.array(user_embeds.get("codeforces_embed", [])),
+            "codechef": np.array(user_embeds.get("codechef_embed", [])),
+            "resume": np.array(user_embeds.get("resume_embed", [])),
+            "activity": np.array(user_embeds.get("activity_embed", [])),
+        }
+    except Exception:
+        return {"success": False, "message": "Invalid embedding format"}
 
     scores = {}
+
     for category, user_vec in platform_vectors.items():
+        if user_vec.size == 0:
+            scores[category] = 0
+            continue
+
         similarity = compute_similarity(user_vec, ideal_vectors[category])
         scores[category] = normalize(similarity)
 
-    final_score = round(sum(scores.values()) / len(scores), 2)
+    weights = {
+        "github": 0.20,
+        "leetcode": 0.20,
+        "codeforces": 0.15,
+        "codechef": 0.15,
+        "resume": 0.20,
+        "activity": 0.10,
+    }
+
+    final_score = round(
+        sum(scores[k] * weights[k] for k in scores),
+        2
+    )
 
     finalresults_collection.update_one(
         {"userId": mongo_id},
@@ -80,4 +98,8 @@ def analyze_profile(user_id):
         upsert=True
     )
 
-    return {"success": True, "scores": scores, "finalScore": final_score}
+    return {
+        "success": True,
+        "scores": scores,
+        "finalScore": final_score
+    }

@@ -2,21 +2,33 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 
-// Enhanced parser with fallback logic
+const PYTHON_SERVICE_URL =
+  process.env.PYTHON_SERVICE_URL || "http://localhost:8000";
+
 async function parser(filePath) {
-  // Prefer Python microservice; default to localhost if env is missing
-  const pythonServiceUrl = process.env.PYTHON_SERVICE_URL || "http://localhost:8000";
+  if (!filePath) {
+    throw new Error("filePath is required");
+  }
 
   try {
     const response = await axios.post(
-      `${pythonServiceUrl}/parse-resume`,
+      `${PYTHON_SERVICE_URL}/parse-resume`,
       { filePath },
-      { timeout: 15000 }
+      { timeout: 30000 }
     );
 
+    if (!response.data?.success) {
+      throw new Error(response.data?.error || "Parsing failed");
+    }
+
     return response.data;
+
   } catch (err) {
-    console.warn("Python Service Error, falling back to local parsing:", err.message);
+    console.error("Resume parsing error:", err.response?.data || err.message);
+
+    throw new Error(
+      "Resume parsing service unavailable. Ensure Python microservice is running."
+    );
   }
 
   // No fallback: throw error to prevent fake data

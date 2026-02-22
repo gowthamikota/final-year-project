@@ -63,68 +63,79 @@ def preprocess_user(user_id):
         print(f"Error loading user data: {e}")
         return {"success": False, "error": f"Failed to load user data: {str(e)}"}
 
-    g = profile["github"]
-    lc = profile["leetcode"]
-    cf = profile["codeforces"]
-    cc = profile["codechef"]
+    g = profile.get("github", {})
+    lc = profile.get("leetcode", {})
+    cf = profile.get("codeforces", {})
+    cc = profile.get("codechef", {})
 
+    # ---------------- GITHUB ----------------
     github_block = f"""
     GitHub Summary:
-    Total Stars: {g.get('totalStars')}
-    Total Commits: {g.get('totalCommits')}
-    Repo Count: {g.get('repoCount')}
-    Top Languages: {', '.join(g.get('languages', []))}
+    Followers: {g.get('followers', 0)}
+    Public Repositories: {g.get('publicRepos', 0)}
+    Total Stars: {g.get('totalStars', 0)}
+    Total Forks: {g.get('totalForks', 0)}
+    Pull Requests: {g.get('totalPRs', 0)}
+    Issues: {g.get('totalIssues', 0)}
+    Top Languages: {', '.join(g.get('topLanguages', []))}
     """
 
+    # ---------------- LEETCODE ----------------
     leetcode_block = f"""
     LeetCode Summary:
-    Total Solved: {lc.get('totalSolved')}
-    Easy: {lc.get('easySolved')}
-    Medium: {lc.get('mediumSolved')}
-    Hard: {lc.get('hardSolved')}
+    Total Solved: {lc.get('totalSolved', 0)}
+    Easy: {lc.get('easySolved', 0)}
+    Medium: {lc.get('mediumSolved', 0)}
+    Hard: {lc.get('hardSolved', 0)}
+    Ranking: {lc.get('ranking', 0)}
+    Reputation: {lc.get('reputation', 0)}
     """
 
+    # ---------------- CODEFORCES ----------------
     codeforces_block = f"""
     Codeforces Summary:
-    Rating: {cf.get('rating')}
-    Max Rating: {cf.get('maxRating')}
-    Rank: {cf.get('rank')}
+    Rating: {cf.get('rating', 0)}
+    Max Rating: {cf.get('maxRating', 0)}
+    Rank: {cf.get('rank', '')}
+    Max Rank: {cf.get('maxRank', '')}
     """
 
+    # ---------------- CODECHEF ----------------
     codechef_block = f"""
     CodeChef Summary:
-    Rating: {cc.get('rating')}
-    Stars: {cc.get('stars')}
-    Highest Rating: {cc.get('highestRating')}
+    Rating: {cc.get('rating', 0)}
+    Stars: {cc.get('stars', 0)}
+    Contests Participated: {cc.get('contestsParticipated', 0)}
+    Total Problems Solved: {cc.get('totalProblemsSolved', 0)}
+    Global Rank: {cc.get('globalRank', 0)}
+    Country Rank: {cc.get('countryRank', 0)}
     """
 
+    # ---------------- RESUME ----------------
     resume_block = f"""
+    Resume Summary:
     Skills: {', '.join(resume.get('skills', []))}
     Experience: {' '.join(resume.get('experience', []))}
     Projects: {' '.join(resume.get('projects', []))}
     """
 
+    # ---------------- ACTIVITY SUMMARY ----------------
     activity_block = f"""
     Overall Coding Activity:
-    GitHub Commits: {g.get('totalCommits')}
-    LeetCode Problems Solved: {lc.get('totalSolved')}
-    Codeforces Rating: {cf.get('rating')}
-    CodeChef Rating: {cc.get('rating')}
+    GitHub Stars: {g.get('totalStars', 0)}
+    GitHub PRs: {g.get('totalPRs', 0)}
+    LeetCode Problems Solved: {lc.get('totalSolved', 0)}
+    Codeforces Rating: {cf.get('rating', 0)}
+    CodeChef Rating: {cc.get('rating', 0)}
     """
 
-    # ✔ Embed using FastEmbed
-    if not embedder:
-        return {"success": False, "error": "Embedder not initialized - required dependencies may be missing"}
-    
-    try:
-        github_vec = embed(github_block)
-        leetcode_vec = embed(leetcode_block)
-        codeforces_vec = embed(codeforces_block)
-        codechef_vec = embed(codechef_block)
-        resume_vec = embed(resume_block)
-        activity_vec = embed(activity_block)
-    except Exception as e:
-        return {"success": False, "error": f"Embedding failed: {str(e)}"}
+    # Generate embeddings
+    github_vec = embed(github_block)
+    leetcode_vec = embed(leetcode_block)
+    codeforces_vec = embed(codeforces_block)
+    codechef_vec = embed(codechef_block)
+    resume_vec = embed(resume_block)
+    activity_vec = embed(activity_block)
 
     try:
         result = db.embeddings.update_one(
@@ -141,15 +152,12 @@ def preprocess_user(user_id):
                 },
                 "$setOnInsert": {"createdAt": datetime.now(timezone.utc)},
             },
-            upsert=True
-        )
+            "$setOnInsert": {"createdAt": datetime.now(UTC)},
+        },
+        upsert=True,
+    )
 
-        print(
-            f"[preprocess] embeddings upsert matched={result.matched_count} "
-            f"modified={result.modified_count} upserted={result.upserted_id}"
-        )
-    except Exception as e:
-        print(f"Error writing embeddings: {e}")
-        return {"success": False, "error": f"Failed to write embeddings: {str(e)}"}
-
-    return {"success": True, "message": "Platform-wise embeddings generated and saved"}
+    return {
+        "success": True,
+        "message": "Platform-wise embeddings generated and saved",
+    }
