@@ -5,27 +5,25 @@ const FinalResultSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
-      ref: "users",
+      ref: "user",
       unique: true,
     },
 
     scores: {
-      github: { type: Number, required: true },
-      leetcode: { type: Number, required: true },
-      codeforces: { type: Number, required: true },
-      codechef: { type: Number, required: true },
-      resume: { type: Number, required: true },
-      activity: { type: Number, required: true },
+      github: { type: Number, default: 0 },
+      leetcode: { type: Number, default: 0 },
+      codeforces: { type: Number, default: 0 },
+      codechef: { type: Number, default: 0 },
+      resume: { type: Number, default: 0 },
+      activity: { type: Number, default: 0 },
     },
 
     finalScore: {
       type: Number,
-      required: true,
+      default: 0,
     },
   },
   { timestamps: true }
 );
 
-const finalResults = mongoose.model("finalresults", FinalResultSchema);
-
-module.exports = finalResults;
+module.exports = mongoose.model("finalresults", FinalResultSchema);

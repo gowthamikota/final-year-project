@@ -4,18 +4,47 @@ const resumeDataSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "user", 
       required: true,
     },
-    name: String,
-    email: String,
-    phone: String,
-    skills: [String],
-    raw_text: String,
-    filePath: String,
+
+    name: { type: String, default: "" },
+    email: { type: String, default: "" },
+    phone: { type: String, default: "" },
+
+    skills: {
+      type: [String],
+      default: [],
+    },
+
+    experience: {
+      type: [String],
+      default: [],
+    },
+
+    projects: {
+      type: [String],
+      default: [],
+    },
+
+    education: {
+      type: [String],
+      default: [],
+    },
+
+    raw_text: {
+      type: String,
+      default: "",
+    },
+
+    filePath: {
+      type: String,
+      required: true,
+    },
   },
   { timestamps: true }
 );
 
-const resumeDataModel = mongoose.model("resumeData", resumeDataSchema);
+const resumeDataModel = mongoose.model("resumedatas", resumeDataSchema);
+
 module.exports = resumeDataModel;

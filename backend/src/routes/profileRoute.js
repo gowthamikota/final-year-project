@@ -1,39 +1,78 @@
 const express = require("express");
 const profileRouter = express.Router();
-
-const { validateEditprofile } = require("../services/validate.js");
 const bcrypt = require("bcrypt");
 
+const { validateEditprofile } = require("../services/validate.js");
+
+// ---------------- VIEW PROFILE ----------------
 profileRouter.get("/profile/view", async (req, res) => {
   try {
-    const user = req.user;
-    res.send(user);
+    return res.json({
+      success: true,
+      user: req.user,
+    });
   } catch (err) {
-    res.status(401).send("Something went wrong: " + err.message);
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+    });
   }
 });
 
+// ---------------- UPDATE PROFILE ----------------
 profileRouter.patch("/profile/update", async (req, res) => {
   try {
     if (!validateEditprofile(req)) {
-      throw new Error("Invalid Update Request");
+      return res.status(400).json({
+        success: false,
+        error: "Invalid update request",
+      });
     }
 
     const user = req.user;
-    Object.keys(req.body).forEach((key) => {
-      user[key] = req.body[key];
-    });
+
+    for (const key of Object.keys(req.body)) {
+      if (key === "password") {
+        const hashed = await bcrypt.hash(req.body.password, 10);
+        user.password = hashed;
+      } else {
+        user[key] = req.body[key];
+      }
+    }
 
     await user.save();
-    res.send("Profile Updated successfully.");
+
+    return res.json({
+      success: true,
+      message: "Profile updated successfully",
+    });
+
   } catch (err) {
-    res.status(401).send("Something went wrong: " + err.message);
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+    });
   }
 });
 
-
+// ---------------- DELETE PROFILE ----------------
 profileRouter.delete("/profile/delete", async (req, res) => {
-  
+  try {
+    const user = req.user;
+
+    await user.deleteOne();
+
+    return res.json({
+      success: true,
+      message: "Account deleted successfully",
+    });
+
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
 });
 
 module.exports = profileRouter;

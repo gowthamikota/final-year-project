@@ -6,37 +6,37 @@ const EmbeddingSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       required: true,
       unique: true,
-      ref: "users",
+      ref: "user",
     },
 
     github_embed: {
       type: [Number],
-      required: true,
+      default: [],
     },
 
     leetcode_embed: {
       type: [Number],
-      required: true,
+      default: [],
     },
 
     codeforces_embed: {
       type: [Number],
-      required: true,
+      default: [],
     },
 
     codechef_embed: {
       type: [Number],
-      required: true,
+      default: [],
     },
 
     resume_embed: {
       type: [Number],
-      required: true,
+      default: [],
     },
 
     activity_embed: {
       type: [Number],
-      required: true,
+      default: [],
     },
   },
   { timestamps: true }

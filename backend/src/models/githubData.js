@@ -8,30 +8,18 @@ const gitHubDataSchema = new mongoose.Schema(
       required: true,
     },
 
-    name: { type: String, required: true },
-    rank: { type: String },
-    totalStars: { type: Number },
-    totalCommits: { type: Number },
-    totalPRs: { type: Number },
-    totalIssues: { type: Number },
-    contributedTo: { type: Number },
-    streakData: [
-      {
-        totalContributions: { type: Number },
-        currentStreak: { type: Number },
-        longestStreak: { type: Number },
-      },
-    ],
-    languageData: [
-      {
-        languages: [
-          {
-            language: { type: String },
-            percentage: { type: Number },
-          },
-        ],
-      },
-    ],
+    name: { type: String },
+
+    followers: { type: Number, default: 0 },
+    publicRepos: { type: Number, default: 0 },
+
+    totalStars: { type: Number, default: 0 },
+    totalForks: { type: Number, default: 0 },
+
+    totalPRs: { type: Number, default: 0 },
+    totalIssues: { type: Number, default: 0 },
+
+    topLanguages: [{ type: String }],
   },
   { timestamps: true }
 );

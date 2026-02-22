@@ -8,16 +8,16 @@ const codechefProfileSchema = new mongoose.Schema(
       required: true,
     },
 
-    country: { type: String, required: true },
-    rating: { type: Number, required: true },
-    contestsParticipated: { type: Number, required: true },
-    stars: { type: Number, required: true },
-    ranks: { type: Number, required: true },
-    totalProblemsSolved: { type: Number, required: true },
-    ratingConsistency: { type: Number, required: true },
+    rating: { type: Number, default: 0 },
+    stars: { type: Number, default: 0 },
+
+    contestsParticipated: { type: Number, default: 0 },
+    totalProblemsSolved: { type: Number, default: 0 },
+
+    globalRank: { type: Number, default: 0 },
+    countryRank: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 
-const codechefModel = mongoose.model("CodechefProfile", codechefProfileSchema);
-module.exports = codechefModel;
+module.exports = mongoose.model("CodechefProfile", codechefProfileSchema);

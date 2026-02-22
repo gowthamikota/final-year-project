@@ -1,6 +1,7 @@
 import re
 from PyPDF2 import PdfReader
 
+
 def read_pdf(path):
     text = ""
     reader = PdfReader(path)
@@ -8,67 +9,87 @@ def read_pdf(path):
         part = page.extract_text()
         if part:
             text += part + "\n"
-    return text
+    return text.strip()
 
 
-def find_name(text):
-    m = re.search(r"\b([A-Z][a-z]{2,}\s[A-Z][a-z]{2,})\b", text)
-    return m.group(1) if m else None
-
+# ---------------- BASIC INFO ----------------
 
 def find_email(text):
-    m = re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", text)
-    return m.group(0) if m else None
+    match = re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", text)
+    return match.group(0) if match else None
 
 
 def find_phone(text):
-    m = re.search(r"\b(\+?\d{1,3}[- ]?)?\d{10}\b", text)
-    return m.group(0) if m else None
+    match = re.search(r"(\+?\d{1,3}[\s-]?)?\d{10}", text)
+    return match.group(0) if match else None
 
+
+def find_name(text):
+    # Take first 2-3 word capitalized line from top
+    lines = text.split("\n")[:10]
+    for line in lines:
+        line = line.strip()
+        if 5 < len(line) < 40 and re.match(r"^[A-Z][a-zA-Z]+\s[A-Z][a-zA-Z]+", line):
+            return line
+    return None
+
+
+# ---------------- SECTION EXTRACTION ----------------
+
+def extract_section(text, section_name):
+    pattern = rf"{section_name}\s*(.*?)(\n[A-Z][A-Za-z\s]+:?\n|\Z)"
+    match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+    return match.group(1).strip() if match else ""
+
+
+def clean_lines(block, min_len=5, max_items=8):
+    lines = []
+    for line in block.split("\n"):
+        line = line.strip("•- \t")
+        if len(line) >= min_len:
+            lines.append(line)
+    return lines[:max_items]
+
+
+# ---------------- SKILLS ----------------
 
 def find_skills(text):
-    m = re.search(r"Skills\s*:?\s*(.*)", text, re.IGNORECASE)
-    if not m:
+    skills_block = extract_section(text, "Skills")
+    if not skills_block:
         return []
-    parts = [p.strip() for p in m.group(1).split(",")]
-    return [p for p in parts if p]
 
+    # Split by commas or new lines
+    parts = re.split(r",|\n", skills_block)
+    skills = [p.strip() for p in parts if len(p.strip()) > 1]
+    return skills[:20]
+
+
+# ---------------- EXPERIENCE ----------------
 
 def find_experience(text):
-    exp = []
-    items = re.split(r"Experience|EXPERIENCE", text)
-    if len(items) < 2:
-        return exp
-    for line in items[1].split("\n"):
-        if len(line.strip()) > 6:
-            exp.append(line.strip())
-    return exp[:6]
+    block = extract_section(text, "Experience")
+    return clean_lines(block, min_len=8)
 
+
+# ---------------- PROJECTS ----------------
 
 def find_projects(text):
-    pro = []
-    items = re.split(r"Projects|PROJECTS", text)
-    if len(items) < 2:
-        return pro
-    for line in items[1].split("\n"):
-        if len(line.strip()) > 6:
-            pro.append(line.strip())
-    return pro[:6]
+    block = extract_section(text, "Projects")
+    return clean_lines(block, min_len=8)
 
+
+# ---------------- EDUCATION ----------------
 
 def find_education(text):
-    edu = []
-    items = re.split(r"Education|EDUCATION", text)
-    if len(items) < 2:
-        return edu
-    for line in items[1].split("\n"):
-        if len(line.strip()) > 4:
-            edu.append(line.strip())
-    return edu[:5]
+    block = extract_section(text, "Education")
+    return clean_lines(block, min_len=6)
 
+
+# ---------------- MAIN PARSER ----------------
 
 def parse_resume(path):
     text = read_pdf(path)
+
     return {
         "name": find_name(text),
         "email": find_email(text),
@@ -77,4 +98,5 @@ def parse_resume(path):
         "experience": find_experience(text),
         "projects": find_projects(text),
         "education": find_education(text),
+        "raw_text": text[:10000],  # limit size for DB safety
     }
