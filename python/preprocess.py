@@ -1,5 +1,6 @@
 import os
-import uuid
+import json
+from pymongo import MongoClient
 from datetime import datetime, UTC
 from dotenv import load_dotenv
 from bson import ObjectId
@@ -18,13 +19,8 @@ load_dotenv()
 # ---------------- CONFIG ----------------
 
 MONGO_URL = os.getenv("MONGODB_CONNECTION")
-DB_NAME = "Final_year_project"
+DB_NAME = os.getenv("DB_NAME", "final_year_project")
 
-mongo_client = MongoClient(MONGO_URL)
-db = mongo_client[DB_NAME]
-
-qdrant = QdrantClient("http://localhost:6333")
-COLLECTION_NAME = "user_embeddings"
 
 embedder = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
 
@@ -41,11 +37,15 @@ def preprocess_user(user_id):
     except:
         return {"success": False, "error": "Invalid ObjectId"}
 
-    profile = db.combineddatas.find_one({"userId": user_object_id})
-    resume = db.resumedatas.find_one({"userId": user_object_id})
+    client = MongoClient(MONGO_URL)
+    db = client[DB_NAME]
 
-    if not profile or not resume:
-        return {"success": False, "error": "Profile or Resume missing"}
+    profile, resume = load_data(db, user_object_id)
+
+    if not profile:
+        return {"success": False, "error": "Combined profile missing"}
+    if not resume:
+        return {"success": False, "error": "Resume data missing"}
 
     g = profile.get("github", {})
     lc = profile.get("leetcode", {})
@@ -112,49 +112,30 @@ def preprocess_user(user_id):
         """
     }
 
-    # --------- Delete Old User Vectors ---------
+    # Generate embeddings
+    github_vec = embed(github_block)
+    leetcode_vec = embed(leetcode_block)
+    codeforces_vec = embed(codeforces_block)
+    codechef_vec = embed(codechef_block)
+    resume_vec = embed(resume_block)
+    activity_vec = embed(activity_block)
 
-    try:
-        qdrant.delete(
-            collection_name=COLLECTION_NAME,
-            points_selector=Filter(
-                must=[
-                    FieldCondition(
-                        key="userId",
-                        match=MatchValue(value=user_id)
-                    )
-                ]
-            )
-        )
-    except Exception as e:
-        return {"success": False, "error": f"Qdrant delete error: {str(e)}"}
-
-    # --------- Insert Fresh Vectors ---------
-
-    points = []
-
-    for platform, text in blocks.items():
-        vector = embed(text)
-
-        points.append(
-            PointStruct(
-                id=str(uuid.uuid4()),
-                vector={"vector": vector},
-                payload={
-                    "userId": user_id,
-                    "platform": platform,
-                    "updatedAt": datetime.now(UTC).isoformat()
-                }
-            )
-        )
-
-    try:
-        qdrant.upsert(
-            collection_name=COLLECTION_NAME,
-            points=points
-        )
-    except Exception as e:
-        return {"success": False, "error": f"Qdrant upsert error: {str(e)}"}
+    db.embeddings.update_one(
+        {"userId": user_object_id},
+        {
+            "$set": {
+                "github_embed": github_vec,
+                "leetcode_embed": leetcode_vec,
+                "codeforces_embed": codeforces_vec,
+                "codechef_embed": codechef_vec,
+                "resume_embed": resume_vec,
+                "activity_embed": activity_vec,
+                "updatedAt": datetime.now(UTC),
+            },
+            "$setOnInsert": {"createdAt": datetime.now(UTC)},
+        },
+        upsert=True,
+    )
 
     return {
         "success": True,

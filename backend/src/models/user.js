@@ -71,6 +71,45 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+
+    // Student Profile Information
+    degree: {
+      type: String,
+    },
+
+    branch: {
+      type: String,
+    },
+
+    graduationYear: {
+      type: String,
+    },
+
+    phone: {
+      type: String,
+    },
+
+    location: {
+      type: String,
+    },
+
+    // Career Preferences
+    targetRoles: {
+      type: String,
+    },
+
+    skillsToImprove: {
+      type: String,
+    },
+
+    preferredLocations: {
+      type: String,
+    },
+
+    // Resume Information
+    resumeFile: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

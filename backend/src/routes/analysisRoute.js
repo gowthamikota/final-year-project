@@ -3,6 +3,7 @@ const analysisRouter = express.Router();
 const axios = require("axios");
 const FinalResults = require("../models/finalResultData");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const multer = require("multer");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const PYTHON_SERVICE_URL =
@@ -81,7 +82,7 @@ Keep concise.
 
     return res.json({
       success: true,
-      analysis: result,
+      data: result,
       suggestions,
     });
 
