@@ -39,7 +39,10 @@ def resume():
         return jsonify({"error": "Missing filePath"}), 400
 
     result = parse_resume(file_path)
-    return jsonify(result)
+    return jsonify({
+        "success": True,
+        "data": result
+    })
 
 
 @app.route("/", methods=["GET"])

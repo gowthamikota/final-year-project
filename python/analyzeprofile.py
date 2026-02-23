@@ -1,82 +1,85 @@
 import os
-import numpy as np
+from datetime import datetime
 from dotenv import load_dotenv
-from pymongo import MongoClient
-from sklearn.metrics.pairwise import cosine_similarity
 from bson import ObjectId
+from pymongo import MongoClient
 from fastembed import TextEmbedding
+from qdrant_client import QdrantClient
+from qdrant_client.models import Filter, FieldCondition, MatchValue
 
 load_dotenv()
 
+# ---------------- CONFIG ----------------
+
 MONGO_URI = os.getenv("MONGODB_CONNECTION")
-DB_NAME = os.getenv("DB_NAME", "Final_year_project")
-
-embedder = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
-
-
-def embed_text(text):
-    return embedder.embed([text])[0]
-
-
-def normalize(score):
-    return round((score + 1) * 50, 2)
-
-
-def compute_similarity(vec1, vec2):
-    return cosine_similarity([vec1], [vec2])[0][0]
-
+DB_NAME = "Final_year_project"
 
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client[DB_NAME]
 
-embeddings_collection = db["embeddings"]
-finalresults_collection = db["finalresults"]
+qdrant = QdrantClient("http://localhost:6333")
+COLLECTION_NAME = "user_embeddings"
 
+embedder = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
+
+# ---------------- HELPERS ----------------
+
+def embed(text):
+    return list(embedder.embed([text]))[0]
+
+# ---------------- IDEAL PROFILES ----------------
 
 ideal_profiles = {
-    "github": "Strong GitHub profile with followers, stars, forks, pull requests, and diverse languages.",
-    "leetcode": "Active problem solver with strong data structures and algorithms skills.",
-    "codeforces": "Competitive programmer with high rating and contest participation.",
-    "codechef": "Consistent competitive coder with good ratings and contest experience.",
-    "resume": "Well-structured resume highlighting skills, projects, and achievements clearly.",
-    "activity": "Highly active developer with consistent coding practice across platforms."
+    "github": "Strong GitHub profile with stars and pull requests",
+    "leetcode": "Strong data structures and algorithms problem solving",
+    "codeforces": "High competitive programming rating",
+    "codechef": "Consistent competitive coding performance",
+    "resume": "Clear resume with strong projects and skills",
+    "activity": "Highly active developer across platforms"
 }
 
-ideal_vectors = {key: embed_text(val) for key, val in ideal_profiles.items()}
+# ---------------- MAIN ANALYSIS ----------------
 
+# ---------------- MAIN ANALYSIS ----------------
 
 def analyze_profile(user_id):
     try:
-        mongo_id = ObjectId(user_id)
+        ObjectId(user_id)
     except:
         return {"success": False, "message": "Invalid ObjectId"}
 
-    user_embeds = embeddings_collection.find_one({"userId": mongo_id})
-
-    if not user_embeds:
-        return {"success": False, "message": "No embeddings found for user"}
-
-    try:
-        platform_vectors = {
-            "github": np.array(user_embeds.get("github_embed", [])),
-            "leetcode": np.array(user_embeds.get("leetcode_embed", [])),
-            "codeforces": np.array(user_embeds.get("codeforces_embed", [])),
-            "codechef": np.array(user_embeds.get("codechef_embed", [])),
-            "resume": np.array(user_embeds.get("resume_embed", [])),
-            "activity": np.array(user_embeds.get("activity_embed", [])),
-        }
-    except Exception:
-        return {"success": False, "message": "Invalid embedding format"}
-
     scores = {}
 
-    for category, user_vec in platform_vectors.items():
-        if user_vec.size == 0:
-            scores[category] = 0
-            continue
+    for platform, ideal_text in ideal_profiles.items():
+        ideal_vector = embed(ideal_text)
 
-        similarity = compute_similarity(user_vec, ideal_vectors[category])
-        scores[category] = normalize(similarity)
+        try:
+            results = qdrant.query_points(
+                collection_name=COLLECTION_NAME,
+                query=ideal_vector,
+                using="vector",
+                limit=1,
+                query_filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="userId",
+                            match=MatchValue(value=user_id)
+                        ),
+                        FieldCondition(
+                            key="platform",
+                            match=MatchValue(value=platform)
+                        )
+                    ]
+                )
+            )
+        except Exception as e:
+            return {"success": False, "message": f"Qdrant search error: {str(e)}"}
+
+        if results.points:
+            similarity = results.points[0].score
+            scores[platform] = round(similarity * 100, 2)
+        else:
+            scores[platform] = 0
 
     weights = {
         "github": 0.20,
@@ -92,9 +95,17 @@ def analyze_profile(user_id):
         2
     )
 
-    finalresults_collection.update_one(
-        {"userId": mongo_id},
-        {"$set": {"scores": scores, "finalScore": final_score}},
+    # ---------------- SAVE TO MONGO ----------------
+
+    db.finalresults.update_one(
+        {"userId": user_id},
+        {
+            "$set": {
+                "scores": scores,
+                "finalScore": final_score,
+                "updatedAt": datetime.utcnow()
+            }
+        },
         upsert=True
     )
 

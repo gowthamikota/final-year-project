@@ -98,5 +98,5 @@ def parse_resume(path):
         "experience": find_experience(text),
         "projects": find_projects(text),
         "education": find_education(text),
-        "raw_text": text[:10000],  # limit size for DB safety
+        "raw_text": text[:10000],  
     }
