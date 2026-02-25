@@ -9,13 +9,13 @@ authRouter.post("/signup", async (req, res) => {
   try {
     const data = validateSignUpData(req);
     const { firstName, lastName, email, password } = data;
-    const passwordhash = await bcrypt.hash(password, 10);
-
+    
+    // Don't hash password here - the pre-save hook in user model will do it
     const user = new userModel({
       firstName,
       lastName,
       email,
-      password: passwordhash,
+      password, // Pass plain password, let pre-save hook hash it
     });
     await user.save();
     return res.status(200).json({ success: true, message: "User Created Successfully", user });
