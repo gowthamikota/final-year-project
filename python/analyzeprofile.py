@@ -102,7 +102,7 @@ def analyze_profile(user_id: str):
     # ---------------- SAVE TO MONGO ----------------
 
     db.finalresults.update_one(
-        {"userId": user_id},
+        {"userId": ObjectId(user_id)},
         {
             "$set": {
                 "scores": scores,
