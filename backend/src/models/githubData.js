@@ -6,6 +6,7 @@ const gitHubDataSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      unique: true, // 🔥 One GitHub profile per user
     },
 
     name: { type: String },
