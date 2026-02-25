@@ -11,12 +11,12 @@ const PYTHON_SERVICE_URL =
 // ---------------- RUN ANALYSIS ----------------
 analysisRouter.post("/analysis/run", async (req, res) => {
   try {
-    const { userId } = req.body;
+    const userId = req.user?._id?.toString();
 
     if (!userId) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
-        error: "userId is required",
+        error: "Unauthorized user",
       });
     }
 
@@ -26,10 +26,19 @@ analysisRouter.post("/analysis/run", async (req, res) => {
       { timeout: 60000 }
     );
 
+    const pythonData = response.data;
+
+    if (!pythonData.success) {
+      return res.status(400).json({
+        success: false,
+        error: pythonData.message,
+      });
+    }
+
     return res.json({
       success: true,
       message: "Profile analysis completed",
-      data: response.data,
+      data: pythonData,
     });
 
   } catch (err) {
