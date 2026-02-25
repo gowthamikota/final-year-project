@@ -16,6 +16,28 @@ const { fetchLeetcode } = require("../services/platforms/leetcodeService");
 const { fetchCodeforces } = require("../services/platforms/codeforcesService");
 const { fetchCodechef } = require("../services/platforms/codechefService");
 
+const extractUsername = (profile, profileUrl) => {
+  try {
+    const url = new URL(profileUrl);
+
+    if (profile === "codeforces") {
+      const handles = url.searchParams.get("handles");
+      if (handles) return handles.split(";")[0];
+
+      const parts = url.pathname.split("/").filter(Boolean);
+      const profileIndex = parts.indexOf("profile");
+      if (profileIndex >= 0 && parts[profileIndex + 1]) {
+        return parts[profileIndex + 1];
+      }
+    }
+
+    const parts = url.pathname.split("/").filter(Boolean);
+    return parts[parts.length - 1] || "";
+  } catch (err) {
+    return profileUrl.split("/").filter(Boolean).pop() || "";
+  }
+};
+
 resumeRouter.post("/resume/upload", uploader, async (req, res) => {
   try {
     const userId = req.user?._id;
@@ -63,7 +85,8 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
 
     try {
       if (typeof req.body.profileUrls === "string") {
-        profileUrls = JSON.parse(req.body.profileUrls);
+        const raw = req.body.profileUrls.trim().replace(/[.;]+$/, "");
+        profileUrls = JSON.parse(raw);
         console.log("Parsed profileUrls from string:", profileUrls);
       } else if (Array.isArray(req.body.profileUrls)) {
         profileUrls = req.body.profileUrls;
@@ -82,7 +105,12 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
     for (const { profile, profileUrl } of profileUrls) {
       if (!profileUrl) continue;
 
-      const username = profileUrl.split("/").filter(Boolean).pop();
+      const username = extractUsername(profile, profileUrl);
+      if (!username) {
+        console.warn(`Unable to extract username for ${profile}:`, profileUrl);
+        profilesFailed++;
+        continue;
+      }
 
       let data;
 
@@ -98,8 +126,19 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
           break;
 
         case "codeforces":
-          data = await fetchCodeforces(username);
-          await codeforcesModel.create({ userId, ...data });
+          try {
+            data = await fetchCodeforces(username);
+            const saved = await codeforcesModel.findOneAndUpdate(
+              { userId },
+              { userId, ...data },
+              { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+            profilesQueued++;
+            console.log("Codeforces saved:", saved?._id || "(new)");
+          } catch (cfErr) {
+            profilesFailed++;
+            console.warn("Codeforces save failed:", cfErr.message);
+          }
           break;
 
         case "codechef":
