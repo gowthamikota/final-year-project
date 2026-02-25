@@ -12,7 +12,7 @@ load_dotenv()
 # ---------------- CONFIG ----------------
 
 MONGO_URL = os.getenv("MONGODB_CONNECTION")
-DB_NAME = "Final_year_project"
+DB_NAME = os.getenv("DB_NAME", "final_year_project")
 VECTOR_DIM = 384
 
 mongo_client = MongoClient(MONGO_URL)
