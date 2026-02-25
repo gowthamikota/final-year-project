@@ -22,41 +22,62 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage }).single("resume");
 
-// Removed hardcoded fallback data - will throw proper error instead
-
 async function uploader(req, res, next) {
   upload(req, res, async (err) => {
     if (err) {
       console.error("Multer upload error:", err.message);
-      return res
-        .status(400)
-        .json({ 
-          success: false,
-          error: "File upload failed", 
-          details: err.message 
-        });
+      return res.status(400).json({
+        success: false,
+        error: "File upload failed",
+        details: err.message,
+      });
     }
 
     try {
       const userId = req.user?._id;
       const filePath = req.file?.path;
 
-      if (!filePath) {
-        return res.status(400).json({ 
+      if (!userId) {
+        return res.status(401).json({
           success: false,
-          error: "No file uploaded" 
+          error: "Unauthorized user",
         });
       }
-    
+
+      if (!filePath) {
+        return res.status(400).json({
+          success: false,
+          error: "No file uploaded",
+        });
+      }
+
+      console.log("Sending file to Python parser:", filePath);
+
       let parsed;
       try {
         parsed = await parser(filePath);
-        console.log("Resume parsing completed with Python service");
+        console.log("Parsed result:", parsed);
       } catch (parseError) {
         console.error("Resume parsing failed:", parseError.message);
-        throw new Error(`Resume parsing failed: ${parseError.message}. Ensure Python microservice is running.`);
+        return res.status(500).json({
+          success: false,
+          error: "Resume parsing microservice failed. Ensure Python service is running.",
+        });
       }
-      
+
+      // 🔥 CRITICAL VALIDATION
+      if (
+        !parsed ||
+        !parsed.raw_text ||
+        parsed.raw_text.trim().length < 50
+      ) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Resume parsing failed. The file may be scanned, corrupted, or unsupported.",
+        });
+      }
+
       const savedResume = await resumeDataModel.create({
         userId,
         ...parsed,
@@ -67,9 +88,9 @@ async function uploader(req, res, next) {
       next();
     } catch (error) {
       console.error("Error in uploader:", error.message);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
-        error: error.message 
+        error: error.message,
       });
     }
   });
