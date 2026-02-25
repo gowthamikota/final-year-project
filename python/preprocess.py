@@ -2,7 +2,7 @@ import os
 import uuid
 import numpy as np
 import faiss
-from datetime import datetime, UTC
+from datetime import datetime
 from dotenv import load_dotenv
 from bson import ObjectId
 from pymongo import MongoClient
@@ -79,7 +79,7 @@ def preprocess_user(user_id):
             "userId": user_id,
             "platform": platform,
             "vector": vector,
-            "updatedAt": datetime.now(UTC)
+            "updatedAt": datetime.utcnow()
         })
 
     return {
