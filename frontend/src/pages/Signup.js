@@ -1,27 +1,52 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 function Signup() {
   const [formData, setFormData] = useState({ 
-    name: "", 
+    firstName: "", 
+    lastName: "", 
     email: "", 
     password: "", 
     confirm: "" 
   });
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { signup } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
     setIsLoading(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // TODO: Actual API call to backend for registration
-    setIsLoading(false);
-    navigate("/login"); // Redirect to login page after signup
+
+    // Validation
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
+      setError("Please fill in all fields");
+      setIsLoading(false);
+      return;
+    }
+
+    if (formData.password !== formData.confirm) {
+      setError("Passwords do not match");
+      setIsLoading(false);
+      return;
+    }
+
+    if (passwordStrength < 2) {
+      setError("Password is too weak");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      await signup(formData.firstName, formData.lastName, formData.email, formData.password);
+      navigate("/login");
+    } catch (err) {
+      setError(err.message || "Signup failed. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   const handlePasswordChange = (e) => {
@@ -87,19 +112,42 @@ function Signup() {
         {/* Signup Form */}
         <form onSubmit={handleSubmit} className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
           <div className="space-y-6">
-            {/* Name Field */}
+            {/* First Name Field */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
+              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                First Name
               </label>
               <div className="relative">
                 <input
-                  id="name"
+                  id="firstName"
                   type="text"
-                  placeholder="Enter your full name"
+                  placeholder="Enter your first name"
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/50 backdrop-blur-sm"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  required
+                />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Last Name Field */}
+            <div>
+              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                Last Name
+              </label>
+              <div className="relative">
+                <input
+                  id="lastName"
+                  type="text"
+                  placeholder="Enter your last name"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/50 backdrop-blur-sm"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   required
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -179,6 +227,18 @@ function Signup() {
                 </div>
               )}
             </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <div className="flex items-center">
+                  <svg className="h-5 w-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm text-red-700">{error}</span>
+                </div>
+              </div>
+            )}
 
             {/* Confirm Password Field */}
             <div>

@@ -13,7 +13,7 @@ load_dotenv()
 # ---------------- CONFIG ----------------
 
 MONGO_URL = os.getenv("MONGODB_CONNECTION")
-DB_NAME = "Final_year_project"
+DB_NAME = os.getenv("DB_NAME", "final_year_project")
 
 mongo_client = MongoClient(MONGO_URL)
 db = mongo_client[DB_NAME]
@@ -35,11 +35,15 @@ def preprocess_user(user_id):
     except:
         return {"success": False, "error": "Invalid ObjectId"}
 
-    profile = db.combineddatas.find_one({"userId": user_object_id})
-    resume = db.resumedatas.find_one({"userId": user_object_id})
+    client = MongoClient(MONGO_URL)
+    db = client[DB_NAME]
 
-    if not profile or not resume:
-        return {"success": False, "error": "Profile or Resume missing"}
+    profile, resume = load_data(db, user_object_id)
+
+    if not profile:
+        return {"success": False, "error": "Combined profile missing"}
+    if not resume:
+        return {"success": False, "error": "Resume data missing"}
 
     g = profile.get("github", {})
     lc = profile.get("leetcode", {})

@@ -5,6 +5,18 @@ function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isLoggedIn, user, logout, isLoading } = useAuth();
 
+  const displayName = user?.firstName && user?.lastName
+    ? `${user.firstName} ${user.lastName}`
+    : user?.email || "User";
+
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "U";
+
   const handleLogout = () => {
     logout();
   };
@@ -67,9 +79,9 @@ function Home() {
                   <div className="relative group">
                     <button className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition-colors duration-200">
                       <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium shadow-sm">
-                        {user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                        {initials}
                       </div>
-                      <span className="font-medium">{user?.name || 'User'}</span>
+                      <span className="font-medium">{displayName}</span>
                       <svg className="w-4 h-4 transition-transform duration-200 group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
