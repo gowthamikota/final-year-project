@@ -1,6 +1,4 @@
 const axios = require("axios");
-const fs = require("fs");
-const path = require("path");
 
 const PYTHON_SERVICE_URL =
   process.env.PYTHON_SERVICE_URL || "http://localhost:8000";
@@ -21,18 +19,21 @@ async function parser(filePath) {
       throw new Error(response.data?.error || "Parsing failed");
     }
 
-    return response.data;
+    //console.log("📄 Python Parser Raw Response:", response.data);
+
+    // ✅ Return ONLY the parsed object
+    return response.data.data;
 
   } catch (err) {
-    console.error("Resume parsing error:", err.response?.data || err.message);
+    console.error(
+      "Resume parsing error:",
+      err.response?.data || err.message
+    );
 
     throw new Error(
       "Resume parsing service unavailable. Ensure Python microservice is running."
     );
   }
-
-  // No fallback: throw error to prevent fake data
-  throw new Error("Resume parsing service unavailable. Ensure Python microservice is running at " + pythonServiceUrl);
 }
 
 module.exports = { parser };
