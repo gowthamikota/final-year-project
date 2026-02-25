@@ -5,28 +5,29 @@ const jwt = require("jsonwebtoken");
 
 const userSchema = new mongoose.Schema(
   {
+    // ================= BASIC INFORMATION =================
     firstName: {
       type: String,
       required: true,
       trim: true,
-      minLength: 2,
-      maxLength: 50,
+      minlength: 2,
+      maxlength: 50,
     },
 
     lastName: {
       type: String,
       required: true,
       trim: true,
-      minLength: 2,
-      maxLength: 50,
+      minlength: 2,
+      maxlength: 50,
     },
 
     email: {
       type: String,
-      trim: true,
-      lowercase: true,
       required: true,
       unique: true,
+      trim: true,
+      lowercase: true,
       validate(value) {
         if (!validator.isEmail(value)) {
           throw new Error("Invalid email address");
@@ -37,12 +38,15 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      minLength: 8,
+      minlength: 8,
+      select: false, // 🔥 Never return password in queries
     },
 
+    // ================= OPTIONAL PROFILE INFO =================
     age: {
       type: Number,
       min: 15,
+      max: 60,
       default: null,
     },
 
@@ -54,6 +58,7 @@ const userSchema = new mongoose.Schema(
 
     about: {
       type: String,
+      maxlength: 500,
       default: "",
     },
 
@@ -72,62 +77,100 @@ const userSchema = new mongoose.Schema(
       default: [],
     },
 
-    // Student Profile Information
+    // ================= STUDENT PROFILE =================
     degree: {
       type: String,
+      trim: true,
     },
 
     branch: {
       type: String,
+      trim: true,
     },
 
     graduationYear: {
-      type: String,
+      type: Number,
+      min: 2000,
+      max: 2035,
     },
 
     phone: {
       type: String,
+      validate(value) {
+        if (value && !validator.isMobilePhone(value, "any")) {
+          throw new Error("Invalid phone number");
+        }
+      },
     },
 
     location: {
       type: String,
+      trim: true,
     },
 
-    // Career Preferences
+    // ================= CAREER PREFERENCES =================
     targetRoles: {
-      type: String,
+      type: [String],
+      default: [],
     },
 
     skillsToImprove: {
-      type: String,
+      type: [String],
+      default: [],
     },
 
     preferredLocations: {
+      type: [String],
+      default: [],
+    },
+
+    // ================= RESUME + EXTERNAL PROFILES =================
+    resumeFile: {
       type: String,
     },
 
-    // Resume Information
-    resumeFile: {
+    leetcodeUsername: {
       type: String,
+      trim: true,
+    },
+
+    githubUsername: {
+      type: String,
+      trim: true,
+    },
+
+    codeforcesUsername: {
+      type: String,
+      trim: true,
+    },
+
+    codechefUsername: {
+      type: String,
+      trim: true,
+    },
+
+    compatibilityScore: {
+      type: Number,
+      default: 0,
     },
   },
   { timestamps: true }
 );
 
+// ================= INDEXES =================
+userSchema.index({ email: 1 });
 userSchema.index({ firstName: 1, lastName: 1 });
 
-
-
+// ================= PASSWORD HASHING =================
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
-  const hashed = await bcrypt.hash(this.password, 10);
-  this.password = hashed;
+  const hashedPassword = await bcrypt.hash(this.password, 10);
+  this.password = hashedPassword;
   next();
 });
 
-
-
+// ================= JWT METHOD =================
 userSchema.methods.getJWT = function () {
   return jwt.sign(
     { _id: this._id },
@@ -136,12 +179,20 @@ userSchema.methods.getJWT = function () {
   );
 };
 
-
-
-userSchema.methods.validatePassword = function (passwordInput) {
+// ================= PASSWORD VALIDATION =================
+userSchema.methods.validatePassword = async function (passwordInput) {
   return bcrypt.compare(passwordInput, this.password);
 };
 
-const userModel = mongoose.model("user", userSchema);
+// ================= CLEAN JSON RESPONSE =================
+userSchema.set("toJSON", {
+  transform: function (doc, ret) {
+    delete ret.password;
+    delete ret.__v;
+    return ret;
+  },
+});
 
-module.exports = userModel;
+const User = mongoose.model("User", userSchema);
+
+module.exports = User;
