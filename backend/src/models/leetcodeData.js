@@ -6,6 +6,7 @@ const leetcodeProfileSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
       required: true,
+      unique: true, // 🔥 One Leetcode profile per user
     },
 
     totalSolved: { type: Number, default: 0 },
