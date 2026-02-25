@@ -28,33 +28,56 @@ authRouter.post("/signup", async (req, res) => {
 authRouter.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
+
     if (!email || !password) {
-      return res.status(400).send("Email and password are required.");
+      return res.status(400).json({
+        success: false,
+        error: "Email and password are required.",
+      });
     }
 
-    const user = await userModel.findOne({ email: email });
+    // 🔥 IMPORTANT FIX
+    const user = await userModel
+      .findOne({ email })
+      .select("+password");
+
     if (!user) {
-      throw new Error("User not found");
+      return res.status(401).json({
+        success: false,
+        error: "Invalid email or password",
+      });
     }
 
     const isPasswordValid = await user.validatePassword(password);
-    if (isPasswordValid) {
-      const token = await user.getJWT();
-      // Use NODE_ENV for security decisions, not origin header
-      const isProduction = process.env.NODE_ENV === "production";
-      
-      res.cookie("token", token, {
-        httpOnly: true,
-        secure: isProduction,
-        sameSite: isProduction ? "None" : "Lax",
-        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid email or password",
       });
-      res.status(200).json({ success: true, user, token });
-    } else {
-      throw new Error("Invalid password");
     }
+
+    const token = user.getJWT();
+    const isProduction = process.env.NODE_ENV === "production";
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "None" : "Lax",
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+
+    res.status(200).json({
+      success: true,
+      user, // password will NOT be included because of toJSON transform
+      token,
+    });
+
   } catch (err) {
-    res.status(401).json({ success: false, error: err.message });
+    res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
   }
 });
 
