@@ -3,6 +3,7 @@ const analysisRouter = express.Router();
 const axios = require("axios");
 const FinalResults = require("../models/finalResultData");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { ObjectId } = require('mongoose').Types;
 const multer = require("multer");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -58,7 +59,19 @@ analysisRouter.get("/analysis/:userId", async (req, res) => {
     const { userId } = req.params;
     const { jobRole } = req.query;
 
-    const result = await FinalResults.findOne({ userId });
+    // Convert string userId to ObjectId for database query
+    const { ObjectId } = require('mongoose').Types;
+    let objectId;
+    try {
+      objectId = new ObjectId(userId);
+    } catch (err) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid userId format",
+      });
+    }
+
+    const result = await FinalResults.findOne({ userId: objectId });
 
     if (!result) {
       return res.status(404).json({
