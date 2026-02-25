@@ -27,6 +27,16 @@ VECTOR_DIM = 384
 def embed(text):
     return np.array(list(embedder.embed([text]))[0]).astype("float32")
 
+def load_data(db, user_object_id):
+    """Load combined profile and resume data from MongoDB"""
+    # Load combined profile data
+    profile = db.combineddatas.find_one({"userId": user_object_id})
+    
+    # Load resume parsed data
+    resume = db.resumeparseddatas.find_one({"userId": user_object_id})
+    
+    return profile, resume
+
 # ---------------- MAIN ----------------
 
 def preprocess_user(user_id):
