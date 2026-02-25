@@ -2,13 +2,36 @@ import re
 from PyPDF2 import PdfReader
 
 
+# ---------------- PDF READER ----------------
+
 def read_pdf(path):
     text = ""
     reader = PdfReader(path)
+
     for page in reader.pages:
         part = page.extract_text()
         if part:
             text += part + "\n"
+
+    # Fix merged lowercase-uppercase words
+    text = re.sub(r"([a-z])([A-Z])", r"\1 \2", text)
+
+    # Fix merged month (Ltd.May → Ltd. May)
+    text = re.sub(
+        r"\.(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)",
+        r". \1",
+        text
+    )
+
+    # Force newline before main section names
+    sections = ["Education", "Skills", "Projects"]
+    for sec in sections:
+        text = re.sub(rf"\s*{sec}\s*", f"\n{sec}\n", text)
+
+    # Clean spacing
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n\s*\n", "\n", text)
+
     return text.strip()
 
 
@@ -25,64 +48,85 @@ def find_phone(text):
 
 
 def find_name(text):
-    # Take first 2-3 word capitalized line from top
-    lines = text.split("\n")[:10]
+    lines = text.split("\n")[:5]
     for line in lines:
         line = line.strip()
-        if 5 < len(line) < 40 and re.match(r"^[A-Z][a-zA-Z]+\s[A-Z][a-zA-Z]+", line):
+        if 5 < len(line) < 60 and re.match(r"^[A-Z][a-zA-Z]+\s[A-Z][a-zA-Z]+", line):
             return line
     return None
 
 
-# ---------------- SECTION EXTRACTION ----------------
+# ---------------- SECTION SPLITTER ----------------
 
 def extract_section(text, section_name):
-    pattern = rf"{section_name}\s*(.*?)(\n[A-Z][A-Za-z\s]+:?\n|\Z)"
-    match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+    pattern = rf"\n{section_name}\n(.*?)(?=\n[A-Z][A-Za-z &]+\n|\Z)"
+    match = re.search(pattern, text, re.DOTALL)
     return match.group(1).strip() if match else ""
-
-
-def clean_lines(block, min_len=5, max_items=8):
-    lines = []
-    for line in block.split("\n"):
-        line = line.strip("•- \t")
-        if len(line) >= min_len:
-            lines.append(line)
-    return lines[:max_items]
 
 
 # ---------------- SKILLS ----------------
 
 def find_skills(text):
-    skills_block = extract_section(text, "Skills")
-    if not skills_block:
+    block = extract_section(text, "Skills")
+    if not block:
         return []
 
-    # Split by commas or new lines
-    parts = re.split(r",|\n", skills_block)
-    skills = [p.strip() for p in parts if len(p.strip()) > 1]
-    return skills[:20]
+    lines = block.split("\n")
+    skills = []
 
+    for line in lines:
+        parts = re.split(r",", line)
+        for part in parts:
+            cleaned = part.strip()
+            cleaned = re.sub(
+                r"^(Programming|Databases|Backend Development|Core Concepts|Tools|Data & Analytics)",
+                "",
+                cleaned,
+            ).strip()
 
-# ---------------- EXPERIENCE ----------------
+            if len(cleaned) > 1:
+                skills.append(cleaned)
 
-def find_experience(text):
-    block = extract_section(text, "Experience")
-    return clean_lines(block, min_len=8)
-
-
-# ---------------- PROJECTS ----------------
-
-def find_projects(text):
-    block = extract_section(text, "Projects")
-    return clean_lines(block, min_len=8)
+    return list(set(skills))
 
 
 # ---------------- EDUCATION ----------------
 
 def find_education(text):
     block = extract_section(text, "Education")
-    return clean_lines(block, min_len=6)
+    if not block:
+        return ""
+
+    # Return entire education block as single string
+    return block.strip()
+
+
+# ---------------- PROJECT NAMES ONLY ----------------
+
+def find_projects(text):
+    block = extract_section(text, "Projects")
+    if not block:
+        return []
+
+    lines = block.split("\n")
+
+    project_titles = []
+
+    for line in lines:
+        line = line.strip("•- \t")
+        if not line:
+            continue
+
+        # Detect likely project title
+        if "–" in line or "(GitHub)" in line or "(Git Hub)" in line:
+            title = (
+                line.replace("(GitHub)", "")
+                .replace("(Git Hub)", "")
+                .strip()
+            )
+            project_titles.append(title)
+
+    return project_titles
 
 
 # ---------------- MAIN PARSER ----------------
@@ -94,9 +138,8 @@ def parse_resume(path):
         "name": find_name(text),
         "email": find_email(text),
         "phone": find_phone(text),
-        "skills": find_skills(text),
-        "experience": find_experience(text),
-        "projects": find_projects(text),
         "education": find_education(text),
-        "raw_text": text[:10000],  
+        "skills": find_skills(text),
+        "projects": find_projects(text),
+        "raw_text": text[:15000],   # for embeddings
     }
