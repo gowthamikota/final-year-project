@@ -16,6 +16,48 @@ const { fetchLeetcode } = require("../services/platforms/leetcodeService");
 const { fetchCodeforces } = require("../services/platforms/codeforcesService");
 const { fetchCodechef } = require("../services/platforms/codechefService");
 
+// ---------------- GET PARSED RESUME ----------------
+resumeRouter.get("/resume/parsed/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "User ID is required",
+      });
+    }
+
+    const parsedResume = await resumeDataModel
+      .findOne({ userId })
+      .sort({ createdAt: -1 });
+
+    if (!parsedResume) {
+      return res.status(404).json({
+        success: false,
+        error: "No parsed resume data found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        skills: parsedResume.skills || [],
+        education: parsedResume.education ? [parsedResume.education] : [],
+        experience: [],
+        projects: parsedResume.projects || [],
+        certifications: [],
+        achievements: [],
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
 const extractUsername = (profile, profileUrl) => {
   try {
     const url = new URL(profileUrl);
