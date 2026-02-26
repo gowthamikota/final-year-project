@@ -42,60 +42,29 @@ const userSchema = new mongoose.Schema(
       select: false, // 🔥 Never return password in queries
     },
 
-    // ================= OPTIONAL PROFILE INFO =================
-    age: {
-      type: Number,
-      min: 15,
-      max: 60,
-      default: null,
-    },
-
-    gender: {
-      type: String,
-      enum: ["male", "female", "others"],
-      default: null,
-    },
-
-    about: {
-      type: String,
-      maxlength: 500,
-      default: "",
-    },
-
-    photoUrl: {
-      type: String,
-      default: "",
-      validate(value) {
-        if (value && !validator.isURL(value)) {
-          throw new Error("Invalid photo URL");
-        }
-      },
-    },
-
-    skills: {
-      type: [String],
-      default: [],
-    },
-
     // ================= STUDENT PROFILE =================
     degree: {
       type: String,
+      default: "",
       trim: true,
     },
 
     branch: {
       type: String,
+      default: "",
       trim: true,
     },
 
     graduationYear: {
       type: Number,
+      default: null,
       min: 2000,
       max: 2035,
     },
 
     phone: {
       type: String,
+      default: "",
       validate(value) {
         if (value && !validator.isMobilePhone(value, "any")) {
           throw new Error("Invalid phone number");
@@ -105,6 +74,7 @@ const userSchema = new mongoose.Schema(
 
     location: {
       type: String,
+      default: "",
       trim: true,
     },
 
