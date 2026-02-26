@@ -33,7 +33,7 @@ function Login() {
 
     try {
       await login(email, password);
-      navigate("/");
+      navigate("/profile");
     } catch (err) {
       setError(err.message || "Login failed. Please try again.");
       setIsLoading(false);
