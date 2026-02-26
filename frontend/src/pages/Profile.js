@@ -18,7 +18,6 @@ import {
   FileText,
   Award,
   Cpu,
-  Building,
   Sparkles
 } from "lucide-react";
 
@@ -53,6 +52,17 @@ function Profile() {
     phone: "",
     location: "",
   });
+
+  useEffect(() => {
+    if (user?.firstName || user?.lastName || user?.email) {
+      setPersonal((prev) => ({
+        ...prev,
+        firstName: user?.firstName || prev.firstName || "",
+        lastName: user?.lastName || prev.lastName || "",
+        email: user?.email || prev.email || "",
+      }));
+    }
+  }, [user]);
 
   const [careerPrefs, setCareerPrefs] = useState({
     targetRoles: "",
@@ -89,25 +99,32 @@ function Profile() {
 
         if (profileResponse.ok) {
           const profileData = await profileResponse.json();
-          setPersonal({
-            firstName: profileData.firstName || "",
-            lastName: profileData.lastName || "",
-            email: profileData.email || "",
-            degree: profileData.degree || "",
-            branch: profileData.branch || "",
-            graduationYear: profileData.graduationYear || "",
-            phone: profileData.phone || "",
-            location: profileData.location || "",
-          });
+          const userData = profileData.user || profileData;
+          setPersonal((prev) => ({
+            firstName: userData.firstName || prev.firstName || "",
+            lastName: userData.lastName || prev.lastName || "",
+            email: userData.email || prev.email || "",
+            degree: userData.degree || "",
+            branch: userData.branch || "",
+            graduationYear: userData.graduationYear || "",
+            phone: userData.phone || "",
+            location: userData.location || "",
+          }));
 
           setCareerPrefs({
-            targetRoles: profileData.targetRoles || "",
-            skillsToImprove: profileData.skillsToImprove || "",
-            preferredLocations: profileData.preferredLocations || "",
+            targetRoles: Array.isArray(userData.targetRoles)
+              ? userData.targetRoles.join(", ")
+              : userData.targetRoles || "",
+            skillsToImprove: Array.isArray(userData.skillsToImprove)
+              ? userData.skillsToImprove.join(", ")
+              : userData.skillsToImprove || "",
+            preferredLocations: Array.isArray(userData.preferredLocations)
+              ? userData.preferredLocations.join(", ")
+              : userData.preferredLocations || "",
           });
 
-          if (profileData.resumeFile) {
-            setResumeStatus(`Resume uploaded: ${profileData.resumeFile}`);
+          if (userData.resumeFile) {
+            setResumeStatus(`Resume uploaded: ${userData.resumeFile}`);
           }
         }
 
@@ -127,7 +144,11 @@ function Profile() {
               if (resumeData.success && resumeData.data) {
                 setAiExtracted({
                   skills: resumeData.data.skills || [],
-                  education: resumeData.data.education || [],
+                  education: Array.isArray(resumeData.data.education)
+                    ? resumeData.data.education
+                    : resumeData.data.education
+                      ? [resumeData.data.education]
+                      : [],
                   experience: resumeData.data.experience || [],
                   projects: resumeData.data.projects || [],
                   certifications: resumeData.data.certifications || [],
@@ -179,6 +200,17 @@ function Profile() {
       
       if (response.ok && result.success) {
         setResumeStatus(`${file.name} uploaded successfully`);
+
+        if (result.data) {
+          setAiExtracted({
+            skills: result.data.skills || [],
+            education: result.data.education ? [result.data.education] : [],
+            experience: [],
+            projects: result.data.projects || [],
+            certifications: [],
+            achievements: [],
+          });
+        }
         
         // Update user profile with resume filename
         await fetch(`${API_URL}/profile/update`, {
@@ -209,7 +241,11 @@ function Profile() {
               if (resumeData.success && resumeData.data) {
                 setAiExtracted({
                   skills: resumeData.data.skills || [],
-                  education: resumeData.data.education || [],
+                  education: Array.isArray(resumeData.data.education)
+                    ? resumeData.data.education
+                    : resumeData.data.education
+                      ? [resumeData.data.education]
+                      : [],
                   experience: resumeData.data.experience || [],
                   projects: resumeData.data.projects || [],
                   certifications: resumeData.data.certifications || [],
@@ -246,16 +282,33 @@ function Profile() {
     setIsSaving(true);
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+      const payload = {
+        ...personal,
+        graduationYear: personal.graduationYear
+          ? parseInt(personal.graduationYear, 10)
+          : undefined,
+        targetRoles: careerPrefs.targetRoles
+          ? careerPrefs.targetRoles.split(",").map((item) => item.trim()).filter(Boolean)
+          : [],
+        skillsToImprove: careerPrefs.skillsToImprove
+          ? careerPrefs.skillsToImprove.split(",").map((item) => item.trim()).filter(Boolean)
+          : [],
+        preferredLocations: careerPrefs.preferredLocations
+          ? careerPrefs.preferredLocations.split(",").map((item) => item.trim()).filter(Boolean)
+          : [],
+      };
+
+      Object.keys(payload).forEach((key) =>
+        payload[key] === undefined && delete payload[key]
+      );
+
       const response = await fetch(`${API_URL}/profile/update`, {
         method: 'PATCH',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...personal,
-          ...careerPrefs,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const result = await response.json();
