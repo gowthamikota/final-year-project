@@ -392,10 +392,10 @@ function Profile() {
           <div className="absolute inset-0 opacity-20 bg-white/5"></div>
           <div className="relative p-8">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate("/")}
               className="inline-flex items-center gap-2 text-white/90 hover:text-white text-sm font-medium transition-colors mb-6"
             >
-              <span className="text-lg">←</span> Back to Dashboard
+              <span className="text-lg">←</span> Back to Home
             </button>
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
               <div>
