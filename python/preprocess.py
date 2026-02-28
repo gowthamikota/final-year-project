@@ -55,6 +55,11 @@ def preprocess_user(user_id):
     if not resume:
         return {"success": False, "error": "Resume data missing"}
 
+    print(f"🔍 DEBUG - Profile data for user {user_id}:")
+    print(f"  GitHub followers: {profile.get('github', {}).get('followers', 0)}")
+    print(f"  LeetCode solved: {profile.get('leetcode', {}).get('totalSolved', 0)}")
+    print(f"  Resume skills count: {len(resume.get('skills', []))}")
+
     g = profile.get("github", {})
     lc = profile.get("leetcode", {})
     cf = profile.get("codeforces", {})
@@ -68,11 +73,41 @@ def preprocess_user(user_id):
         "resume": f"Skills {' '.join(resume.get('skills',[]))}",
         "activity": f"Overall coding activity"
     }
+    
+    # FILTER: Only embed platforms with actual data (not all zeros)
+    platforms_to_embed = {}
+    
+    if g.get('followers', 0) > 0 or g.get('totalStars', 0) > 0 or g.get('totalPRs', 0) > 0:
+        platforms_to_embed['github'] = blocks['github']
+    
+    if lc.get('totalSolved', 0) > 0:
+        platforms_to_embed['leetcode'] = blocks['leetcode']
+    
+    if cf.get('rating', 0) > 0 or cf.get('maxRating', 0) > 0:
+        platforms_to_embed['codeforces'] = blocks['codeforces']
+    
+    if cc.get('rating', 0) > 0 or cc.get('stars', 0) > 0:
+        platforms_to_embed['codechef'] = blocks['codechef']
+    
+    if resume.get('skills', []):
+        platforms_to_embed['resume'] = blocks['resume']
+    
+    # Always include activity
+    platforms_to_embed['activity'] = blocks['activity']
+    
+    print("🔍 DEBUG - Text blocks being embedded:")
+    for platform, text in platforms_to_embed.items():
+        print(f"  ✓ {platform}: {text}")
+    
+    # Show skipped platforms
+    skipped = set(blocks.keys()) - set(platforms_to_embed.keys())
+    for platform in skipped:
+        print(f"  ✗ {platform}: SKIPPED (no data)")
 
     # Remove old embeddings for this user
     db.embeddings.delete_many({"userId": user_id})
 
-    for platform, text in blocks.items():
+    for platform, text in platforms_to_embed.items():
         vector = embed(text).tolist()
 
         db.embeddings.insert_one({
