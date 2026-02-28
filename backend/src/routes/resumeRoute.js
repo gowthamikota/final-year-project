@@ -158,25 +158,47 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
 
       switch (profile) {
         case "github":
-          data = await fetchGithub(username);
-          await githubModel.create({ userId, ...data });
-          break;
-
-        case "leetcode":
-          data = await fetchLeetcode(username);
-          await leetcodeModel.create({ userId, ...data });
-          break;
-
-        case "codeforces":
           try {
-            data = await fetchCodeforces(username);
-            const saved = await codeforcesModel.findOneAndUpdate(
+            data = await fetchGithub(username);
+            await githubModel.findOneAndUpdate(
               { userId },
               { userId, ...data },
               { upsert: true, new: true, setDefaultsOnInsert: true }
             );
             profilesQueued++;
-            console.log("Codeforces saved:", saved?._id || "(new)");
+            console.log("GitHub saved successfully");
+          } catch (ghErr) {
+            profilesFailed++;
+            console.warn("GitHub save failed:", ghErr.message);
+          }
+          break;
+
+        case "leetcode":
+          try {
+            data = await fetchLeetcode(username);
+            await leetcodeModel.findOneAndUpdate(
+              { userId },
+              { userId, ...data },
+              { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+            profilesQueued++;
+            console.log("LeetCode saved successfully");
+          } catch (lcErr) {
+            profilesFailed++;
+            console.warn("LeetCode save failed:", lcErr.message);
+          }
+          break;
+
+        case "codeforces":
+          try {
+            data = await fetchCodeforces(username);
+            await codeforcesModel.findOneAndUpdate(
+              { userId },
+              { userId, ...data },
+              { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+            profilesQueued++;
+            console.log("Codeforces saved successfully");
           } catch (cfErr) {
             profilesFailed++;
             console.warn("Codeforces save failed:", cfErr.message);
@@ -184,8 +206,19 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
           break;
 
         case "codechef":
-          data = await fetchCodechef(username);
-          await codechefModel.create({ userId, ...data });
+          try {
+            data = await fetchCodechef(username);
+            await codechefModel.findOneAndUpdate(
+              { userId },
+              { userId, ...data },
+              { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+            profilesQueued++;
+            console.log("CodeChef saved successfully");
+          } catch (ccErr) {
+            profilesFailed++;
+            console.warn("CodeChef save failed:", ccErr.message);
+          }
           break;
 
         default:
