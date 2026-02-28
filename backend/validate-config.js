@@ -33,8 +33,8 @@ if (!fs.existsSync(backendEnvPath)) {
     }
   });
   
-  if (!envContent.includes('GEMINI_API_KEY=') && !envContent.includes('OPENAI_API_KEY=')) {
-    console.warn('⚠️  No AI API key configured (GEMINI_API_KEY or OPENAI_API_KEY)');
+  if (!envContent.includes('GROQ_API_KEY=')) {
+    console.warn('⚠️  No AI API key configured (GROQ_API_KEY)');
     console.log('   AI recommendations will not work without an API key');
     warnings++;
   }
