@@ -1,18 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("overview");
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(1); // Step 1 or Step 2
   const [isPreprocessing, setIsPreprocessing] = useState(false);
   const [preprocessCompleted, setPreprocessCompleted] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisCompleted, setAnalysisCompleted] = useState(false);
-  const [showActionButtons, setShowActionButtons] = useState(false);
   const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
   const [detailedAnalysisData, setDetailedAnalysisData] = useState(null);
   const [analysisForm, setAnalysisForm] = useState({
@@ -24,7 +22,7 @@ function Dashboard() {
     codechef: "",
     codeforces: ""
   });
-  const [aiRecommendations, setAiRecommendations] = useState([]);
+  const [aiRecommendations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Dashboard data - will be fetched from backend
@@ -49,6 +47,106 @@ function Dashboard() {
     codeforces: 0
   });
 
+  const skillMetadata = {
+    github: "Open Source Contribution",
+    leetcode: "Problem Solving & DSA",
+    codeforces: "Competitive Programming",
+    codechef: "Algorithm Optimization",
+    resume: "Resume Quality",
+  };
+
+  const getPriorityFromScore = useCallback((score) => {
+    if (score < 40) return "High";
+    if (score < 60) return "Medium";
+    return "Low";
+  }, []);
+
+  const buildSkillGaps = useCallback((scores = {}) => {
+    return Object.entries(skillMetadata)
+      .map(([platform, skill]) => ({ platform, skill, score: Number(scores[platform] || 0) }))
+      .filter((item) => item.score < 70)
+      .map((item) => ({
+        skill: item.skill,
+        priority: getPriorityFromScore(item.score),
+        currentScore: Math.round(item.score),
+      }))
+      .sort((a, b) => {
+        const order = { High: 0, Medium: 1, Low: 2 };
+        return order[a.priority] - order[b.priority];
+      });
+  }, [getPriorityFromScore]);
+
+  const buildRecentAnalyses = useCallback((history = [], fallbackFinalScore = 0, fallbackUpdatedAt = null) => {
+    if (Array.isArray(history) && history.length > 0) {
+      return history.map((entry, index) => ({
+        id: entry._id || `${index}`,
+        role: entry.jobRole || "Profile Analysis",
+        company: "Resume + Coding Profiles",
+        score: Math.round(Number(entry.finalScore || 0)),
+        date: entry.createdAt
+          ? new Date(entry.createdAt).toLocaleDateString()
+          : new Date().toLocaleDateString(),
+      }));
+    }
+
+    if (fallbackFinalScore > 0) {
+      return [{
+        id: "latest",
+        role: "Profile Analysis",
+        company: "Resume + Coding Profiles",
+        score: Math.round(Number(fallbackFinalScore || 0)),
+        date: fallbackUpdatedAt
+          ? new Date(fallbackUpdatedAt).toLocaleDateString()
+          : new Date().toLocaleDateString(),
+      }];
+    }
+
+    return [];
+  }, []);
+
+  const hydrateDashboardFromApi = useCallback((apiResult) => {
+    if (!apiResult?.data) return;
+
+    const { finalScore = 0, scores = {}, updatedAt } = apiResult.data;
+    
+    // DEBUG: Log actual scores received from API
+    console.log("🔍 API Scores Received:", scores);
+    console.log("🔍 Final Score:", finalScore);
+    
+    const normalizedScores = {
+      resume: Number(scores.resume || 0),
+      github: Number(scores.github || 0),
+      leetcode: Number(scores.leetcode || 0),
+      codechef: Number(scores.codechef || 0),
+      codeforces: Number(scores.codeforces || 0),
+    };
+
+    console.log("🔍 Normalized Scores:", normalizedScores);
+
+    const scoreValues = Object.values(normalizedScores);
+    const avgScore = scoreValues.length
+      ? scoreValues.reduce((sum, value) => sum + value, 0) / scoreValues.length
+      : 0;
+
+    const recentAnalyses = buildRecentAnalyses(apiResult.history, finalScore, updatedAt);
+    const skillGaps = buildSkillGaps(normalizedScores);
+    
+    console.log("🔍 Skill Gaps Generated:", skillGaps);
+
+    setProfileScores(normalizedScores);
+    setDashboardData({
+      stats: {
+        profileStrength: Math.round(avgScore),
+        avgMatchScore: Math.round(Number(finalScore || 0)),
+        jobsApplied: 0,
+        interviews: 0,
+        profileViews: 0,
+      },
+      recentAnalyses,
+      skillGaps,
+    });
+  }, [buildRecentAnalyses, buildSkillGaps]);
+
   // Fetch dashboard data from backend
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -65,24 +163,8 @@ function Dashboard() {
 
         if (analysisResponse.ok) {
           const analysisData = await analysisResponse.json();
-          
           if (analysisData.success && analysisData.data) {
-            const { finalScore, scores } = analysisData.data;
-            
-            // Calculate profile strength based on scores
-            const avgScore = Object.values(scores).reduce((a, b) => a + b, 0) / Object.values(scores).length;
-            
-            setDashboardData({
-              stats: {
-                profileStrength: Math.round(avgScore),
-                avgMatchScore: Math.round(finalScore),
-                jobsApplied: 0,
-                interviews: 0,
-                profileViews: 0
-              },
-              recentAnalyses: [],
-              skillGaps: []
-            });
+            hydrateDashboardFromApi(analysisData);
           }
         }
         // If no analysis data, stats remain at 0 (initial state)
@@ -94,7 +176,7 @@ function Dashboard() {
     };
 
     fetchDashboardData();
-  }, [user]);
+  }, [user, hydrateDashboardFromApi]);
 
   const handleAnalysisNext = (e) => {
     e.preventDefault();
@@ -168,7 +250,7 @@ function Dashboard() {
                 headers: {
                   'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ userId: user._id }),
+                body: JSON.stringify({ userId: user._id, jobRole: analysisForm.jobRole }),
               });
               
               if (analysisResponse.ok) {
@@ -176,7 +258,6 @@ function Dashboard() {
                 if (analysisResult.success) {
                   preprocessSucceeded = true;
                   setAnalysisCompleted(true);
-                  setShowActionButtons(true);
                   alert('✅ Analysis completed successfully!\n\nClick "Get Score" to view your results.');
                 } else {
                   throw new Error(analysisResult.error || 'Analysis failed');
@@ -198,7 +279,6 @@ function Dashboard() {
           
           if (!preprocessSucceeded) {
             alert(`⏳ Profile scraping is still in progress.\n\nClick "Get Score" button in 10-20 seconds to retrieve your analysis.`);
-            setShowActionButtons(true);
           }
         } else {
           throw new Error(result.error || 'Preprocess failed');
@@ -211,7 +291,6 @@ function Dashboard() {
     } catch (error) {
       console.error("Error during preprocess:", error);
       alert(`⚠️ Issue during setup:\n\n${error.message}\n\nPlease try clicking "Get Score" in 30 seconds.`);
-      setShowActionButtons(true);
     } finally {
       setIsPreprocessing(false);
     }
@@ -224,26 +303,7 @@ function Dashboard() {
       if (!response.ok) throw new Error('Failed to fetch scores');
       const result = await response.json();
       if (result.success && result.data) {
-        const { finalScore, scores } = result.data;
-        const avgScore = Object.values(scores).reduce((a, b) => a + b, 0) / Object.values(scores).length;
-        
-        // Update profile scores
-        setProfileScores({
-          resume: scores.resume || 0,
-          github: scores.github || 0,
-          leetcode: scores.leetcode || 0,
-          codechef: scores.codechef || 0,
-          codeforces: scores.codeforces || 0
-        });
-        
-        setDashboardData(prev => ({
-          ...prev,
-          stats: {
-            ...prev.stats,
-            profileStrength: Math.round(avgScore),
-            avgMatchScore: Math.round(finalScore),
-          }
-        }));
+        hydrateDashboardFromApi(result);
         
         // Close the modal and show success message
         setShowAnalysisModal(false);
@@ -251,7 +311,7 @@ function Dashboard() {
         setPreprocessCompleted(false);
         setAnalysisCompleted(false);
         
-        alert(`✅ Scores loaded successfully!\n\nOverall Score: ${finalScore}/100\nProfile Strength: ${Math.round(avgScore)}%\n\nCheck the dashboard for detailed breakdown.`);
+        alert(`✅ Scores loaded successfully!\n\nOverall Score: ${Math.round(Number(result.data.finalScore || 0))}/100\n\nCheck the dashboard for detailed breakdown.`);
       }
     } catch (err) {
       console.error('Get scores error:', err);
@@ -266,26 +326,7 @@ function Dashboard() {
       if (!response.ok) throw new Error('Failed to fetch analysis');
       const result = await response.json();
       if (result.success && result.data) {
-        // Update scores on dashboard
-        const { finalScore, scores } = result.data;
-        const avgScore = Object.values(scores).reduce((a, b) => a + b, 0) / Object.values(scores).length;
-        
-        setProfileScores({
-          resume: scores.resume || 0,
-          github: scores.github || 0,
-          leetcode: scores.leetcode || 0,
-          codechef: scores.codechef || 0,
-          codeforces: scores.codeforces || 0
-        });
-        
-        setDashboardData(prev => ({
-          ...prev,
-          stats: {
-            ...prev.stats,
-            profileStrength: Math.round(avgScore),
-            avgMatchScore: Math.round(finalScore),
-          }
-        }));
+        hydrateDashboardFromApi(result);
         
         // Set detailed analysis data and show modal
         setDetailedAnalysisData({
@@ -312,14 +353,6 @@ function Dashboard() {
     if (file) {
       setAnalysisForm({ ...analysisForm, resume: file });
     }
-  };
-
-  const getScoreColor = (score) => {
-    if (score >= 90) return "text-green-600";
-    if (score >= 80) return "text-green-500";
-    if (score >= 70) return "text-yellow-500";
-    if (score >= 60) return "text-orange-500";
-    return "text-red-500";
   };
 
   const getStatusColor = (score) => {
@@ -445,30 +478,49 @@ function Dashboard() {
                 <p className="text-gray-600 mt-1">Your latest resume compatibility results</p>
               </div>
               <div className="p-6">
-                <div className="space-y-4">
-                  {dashboardData.recentAnalyses.map((analysis) => (
-                    <div key={analysis.id} className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl transition-colors duration-200">
-                      <div className="flex items-center space-x-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${getStatusColor(analysis.score)} font-bold text-lg`}>
-                          {analysis.score}%
+                {dashboardData.recentAnalyses.length > 0 ? (
+                  <>
+                    <div className="space-y-4">
+                      {dashboardData.recentAnalyses.slice(0, 5).map((analysis) => (
+                        <div key={analysis.id} className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-xl transition-colors duration-200 border border-gray-100">
+                          <div className="flex items-center space-x-4">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${getStatusColor(analysis.score)} font-bold text-lg`}>
+                              {analysis.score}%
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900">{analysis.role}</h3>
+                              <p className="text-gray-600 text-sm">{analysis.company}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(analysis.score)}`}>
+                              {getStatusText(analysis.score)}
+                            </span>
+                            <p className="text-gray-500 text-sm mt-1">{analysis.date}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{analysis.role}</h3>
-                          <p className="text-gray-600 text-sm">{analysis.company}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(analysis.score)}`}>
-                          {getStatusText(analysis.score)}
-                        </span>
-                        <p className="text-gray-500 text-sm mt-1">{analysis.date}</p>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                <button className="w-full mt-6 py-3 text-blue-600 hover:bg-blue-50 rounded-xl font-medium transition-colors duration-200">
-                  View All Analyses →
-                </button>
+                    <button 
+                      onClick={() => setShowAnalysisModal(true)}
+                      className="w-full mt-6 py-3 text-blue-600 hover:bg-blue-50 rounded-xl font-medium transition-colors duration-200"
+                    >
+                      Run New Analysis →
+                    </button>
+                  </>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-5xl mb-4">📊</div>
+                    <p className="text-gray-700 font-medium mb-2">No analyses yet</p>
+                    <p className="text-gray-500 text-sm mb-6">Run your first profile analysis to see results here</p>
+                    <button 
+                      onClick={() => setShowAnalysisModal(true)}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors inline-flex items-center gap-2"
+                    >
+                      <span>+</span> Start Analysis
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -479,32 +531,43 @@ function Dashboard() {
                 <p className="text-gray-600 mt-1">Skills to improve for better matches</p>
               </div>
               <div className="p-6">
-                <div className="space-y-6">
-                  {dashboardData.skillGaps.map((skill, index) => (
-                    <div key={index} className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <span className="font-semibold text-gray-900">{skill.skill}</span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            skill.demand === 'High' ? 'bg-red-100 text-red-800' :
-                            skill.demand === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {skill.demand} Demand
-                          </span>
+                {dashboardData.skillGaps.length > 0 ? (
+                  <>
+                    <div className="space-y-6">
+                      {dashboardData.skillGaps.map((skill, index) => (
+                        <div key={index} className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <span className="font-semibold text-gray-900">{skill.skill}</span>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                skill.priority === 'High' ? 'bg-red-100 text-red-800' :
+                                skill.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {skill.priority} Priority
+                              </span>
+                            </div>
+                            <span className="text-sm font-semibold text-gray-700">{skill.currentScore}%</span>
+                          </div>
+                          <ProgressBar 
+                            percentage={skill.currentScore} 
+                            color={skill.currentScore >= 60 ? 'yellow' : skill.currentScore >= 40 ? 'red' : 'red'}
+                          />
+                          <p className="text-xs text-gray-500">Target: 70% | Gap: {70 - skill.currentScore}%</p>
                         </div>
-                        <span className="text-sm text-gray-500">{skill.resources} resources</span>
-                      </div>
-                      <ProgressBar 
-                        percentage={skill.priority === 'High' ? 30 : skill.priority === 'Medium' ? 50 : 70} 
-                        color={skill.priority === 'High' ? 'red' : skill.priority === 'Medium' ? 'yellow' : 'green'}
-                      />
+                      ))}
                     </div>
-                  ))}
-                </div>
-                <button className="w-full mt-6 py-3 text-blue-600 hover:bg-blue-50 rounded-xl font-medium transition-colors duration-200">
-                  Explore Learning Resources →
-                </button>
+                    <button className="w-full mt-6 py-3 text-blue-600 hover:bg-blue-50 rounded-xl font-medium transition-colors duration-200">
+                      Explore Learning Resources →
+                    </button>
+                  </>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-4xl mb-3">🎉</div>
+                    <p className="text-gray-700 font-medium">No significant gaps detected!</p>
+          
+                  </div>
+                )}
               </div>
             </div>
           </div>
