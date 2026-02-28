@@ -55,6 +55,6 @@ const resumeDataSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const resumeDataModel = mongoose.model("ResumeData", resumeDataSchema);
+const resumeDataModel = mongoose.model("ResumeParsedData", resumeDataSchema);
 
 module.exports = resumeDataModel;
