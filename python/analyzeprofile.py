@@ -53,7 +53,7 @@ ideal_vectors = {
 
 # ---------------- MAIN ANALYSIS ----------------
 
-def analyze_profile(user_id: str):
+def analyze_profile(user_id: str, job_role: str = ""):
 
     print("Received userId:", user_id, type(user_id))
 
@@ -67,6 +67,8 @@ def analyze_profile(user_id: str):
 
     scores = {}
 
+    print(f"🔍 DEBUG - Analyzing profile for user: {user_id}")
+    
     for platform, ideal_vector in ideal_vectors.items():
 
         record = db.embeddings.find_one({
@@ -76,12 +78,14 @@ def analyze_profile(user_id: str):
 
         if not record:
             scores[platform] = 0
+            print(f"  ❌ {platform}: No embedding found (score=0)")
             continue
 
         user_vector = np.array(record["vector"], dtype="float32")
 
         similarity = cosine_similarity(user_vector, ideal_vector)
         scores[platform] = round(similarity * 100, 2)
+        print(f"  ✓ {platform}: similarity={similarity:.4f}, score={scores[platform]}")
 
     # ---------------- WEIGHTED SCORE ----------------
 
@@ -93,11 +97,27 @@ def analyze_profile(user_id: str):
         "resume": 0.20,
         "activity": 0.10,
     }
-
-    final_score = round(
-        sum(scores[k] * weights[k] for k in weights),
-        2
-    )
+    
+    # Only count platforms that have data (non-zero scores)
+    platforms_with_data = [k for k in weights.keys() if scores[k] > 0]
+    
+    if platforms_with_data:
+        # Recalculate weights based on only provided platforms
+        total_weight = sum(weights[k] for k in platforms_with_data)
+        normalized_weights = {k: weights[k] / total_weight for k in platforms_with_data}
+        
+        final_score = round(
+            sum(scores[k] * normalized_weights[k] for k in platforms_with_data),
+            2
+        )
+        
+        print(f"🔍 DEBUG - Platforms with data: {platforms_with_data}")
+        print(f"  Normalized weights: {normalized_weights}")
+    else:
+        final_score = 0
+        print(f"🔍 DEBUG - No platforms with data found")
+    
+    print(f"🔍 DEBUG - Final weighted score: {final_score}")
 
     # ---------------- SAVE TO MONGO ----------------
 
@@ -111,6 +131,17 @@ def analyze_profile(user_id: str):
             }
         },
         upsert=True
+    )
+
+    db.analysishistories.insert_one(
+        {
+            "userId": ObjectId(user_id),
+            "jobRole": (job_role or "").strip(),
+            "scores": scores,
+            "finalScore": final_score,
+            "createdAt": datetime.utcnow(),
+            "updatedAt": datetime.utcnow(),
+        }
     )
 
     return {
