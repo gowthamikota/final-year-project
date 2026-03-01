@@ -204,11 +204,15 @@ function Profile() {
         if (result.data) {
           setAiExtracted({
             skills: result.data.skills || [],
-            education: result.data.education ? [result.data.education] : [],
-            experience: [],
+            education: Array.isArray(result.data.education)
+              ? result.data.education
+              : result.data.education
+                ? [result.data.education]
+                : [],
+            experience: result.data.experience || [],
             projects: result.data.projects || [],
-            certifications: [],
-            achievements: [],
+            certifications: result.data.certifications || [],
+            achievements: result.data.achievements || [],
           });
         }
         
