@@ -43,11 +43,15 @@ resumeRouter.get("/resume/parsed/:userId", async (req, res) => {
       success: true,
       data: {
         skills: parsedResume.skills || [],
-        education: parsedResume.education ? [parsedResume.education] : [],
-        experience: [],
+        education: Array.isArray(parsedResume.education)
+          ? parsedResume.education
+          : parsedResume.education
+            ? [parsedResume.education]
+            : [],
+        experience: parsedResume.experience || [],
         projects: parsedResume.projects || [],
-        certifications: [],
-        achievements: [],
+        certifications: parsedResume.certifications || [],
+        achievements: parsedResume.achievements || [],
       },
     });
   } catch (err) {
