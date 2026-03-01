@@ -138,25 +138,25 @@ function Profile() {
             console.log("Resume fetch status:", resumeResponse.status);
 
             if (resumeResponse.ok) {
-              const resumeData = await resumeResponse.json();
-              console.log("Resume data fetched:", resumeData);
+              const resumeParsedData = await resumeResponse.json();
+              console.log("Resume data fetched:", resumeParsedData);
               
-              if (resumeData.success && resumeData.data) {
+              if (resumeParsedData.success && resumeParsedData.data) {
                 setAiExtracted({
-                  skills: resumeData.data.skills || [],
-                  education: Array.isArray(resumeData.data.education)
-                    ? resumeData.data.education
-                    : resumeData.data.education
-                      ? [resumeData.data.education]
+                  skills: resumeParsedData.data.skills || [],
+                  education: Array.isArray(resumeParsedData.data.education)
+                    ? resumeParsedData.data.education
+                    : resumeParsedData.data.education
+                      ? [resumeParsedData.data.education]
                       : [],
-                  experience: resumeData.data.experience || [],
-                  projects: resumeData.data.projects || [],
-                  certifications: resumeData.data.certifications || [],
-                  achievements: resumeData.data.achievements || [],
+                  experience: resumeParsedData.data.experience || [],
+                  projects: resumeParsedData.data.projects || [],
+                  certifications: resumeParsedData.data.certifications || [],
+                  achievements: resumeParsedData.data.achievements || [],
                 });
-                console.log("AI extracted data updated:", resumeData.data);
+                console.log("AI extracted data updated:", resumeParsedData.data);
               } else {
-                console.log("Resume data not in expected format:", resumeData);
+                console.log("Resume data not in expected format:", resumeParsedData);
               }
             } else if (resumeResponse.status === 404) {
               console.log("No resume data found for user (404)");
@@ -235,21 +235,21 @@ function Profile() {
             console.log("Resume fetch response status:", resumeResponse.status);
             
             if (resumeResponse.ok) {
-              const resumeData = await resumeResponse.json();
-              console.log("Fetched resume data:", resumeData);
+              const resumeParsedData = await resumeResponse.json();
+              console.log("Fetched resume data:", resumeParsedData);
               
-              if (resumeData.success && resumeData.data) {
+              if (resumeParsedData.success && resumeParsedData.data) {
                 setAiExtracted({
-                  skills: resumeData.data.skills || [],
-                  education: Array.isArray(resumeData.data.education)
-                    ? resumeData.data.education
-                    : resumeData.data.education
-                      ? [resumeData.data.education]
+                  skills: resumeParsedData.data.skills || [],
+                  education: Array.isArray(resumeParsedData.data.education)
+                    ? resumeParsedData.data.education
+                    : resumeParsedData.data.education
+                      ? [resumeParsedData.data.education]
                       : [],
-                  experience: resumeData.data.experience || [],
-                  projects: resumeData.data.projects || [],
-                  certifications: resumeData.data.certifications || [],
-                  achievements: resumeData.data.achievements || [],
+                  experience: resumeParsedData.data.experience || [],
+                  projects: resumeParsedData.data.projects || [],
+                  certifications: resumeParsedData.data.certifications || [],
+                  achievements: resumeParsedData.data.achievements || [],
                 });
                 console.log("AI extracted data updated successfully");
               }
