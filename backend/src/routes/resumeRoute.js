@@ -4,7 +4,7 @@ const resumeRouter = express.Router();
 const { uploader } = require("../middlewares/uploaderMiddleware");
 const { mergeData } = require("../services/mergeDocs");
 const { runPreprocessor } = require("../services/runprocessor");
-const resumeDataModel = require("../models/resumeParsedData");
+const resumeParsedDataModel = require("../models/resumeParsedData");
 
 const githubModel = require("../models/githubData");
 const leetcodeModel = require("../models/leetcodeData");
@@ -15,6 +15,74 @@ const { fetchGithub } = require("../services/platforms/githubService");
 const { fetchLeetcode } = require("../services/platforms/leetcodeService");
 const { fetchCodeforces } = require("../services/platforms/codeforcesService");
 const { fetchCodechef } = require("../services/platforms/codechefService");
+
+// ---------------- GET PARSED RESUME ----------------
+resumeRouter.get("/resume/parsed/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "User ID is required",
+      });
+    }
+
+    const parsedResume = await resumeParsedDataModel
+      .findOne({ userId })
+      .sort({ createdAt: -1 });
+
+    if (!parsedResume) {
+      return res.status(404).json({
+        success: false,
+        error: "No parsed resume data found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        skills: parsedResume.skills || [],
+        education: Array.isArray(parsedResume.education)
+          ? parsedResume.education
+          : parsedResume.education
+            ? [parsedResume.education]
+            : [],
+        experience: parsedResume.experience || [],
+        projects: parsedResume.projects || [],
+        certifications: parsedResume.certifications || [],
+        achievements: parsedResume.achievements || [],
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
+const extractUsername = (profile, profileUrl) => {
+  try {
+    const url = new URL(profileUrl);
+
+    if (profile === "codeforces") {
+      const handles = url.searchParams.get("handles");
+      if (handles) return handles.split(";")[0];
+
+      const parts = url.pathname.split("/").filter(Boolean);
+      const profileIndex = parts.indexOf("profile");
+      if (profileIndex >= 0 && parts[profileIndex + 1]) {
+        return parts[profileIndex + 1];
+      }
+    }
+
+    const parts = url.pathname.split("/").filter(Boolean);
+    return parts[parts.length - 1] || "";
+  } catch (err) {
+    return profileUrl.split("/").filter(Boolean).pop() || "";
+  }
+};
 
 resumeRouter.post("/resume/upload", uploader, async (req, res) => {
   try {
@@ -63,7 +131,8 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
 
     try {
       if (typeof req.body.profileUrls === "string") {
-        profileUrls = JSON.parse(req.body.profileUrls);
+        const raw = req.body.profileUrls.trim().replace(/[.;]+$/, "");
+        profileUrls = JSON.parse(raw);
         console.log("Parsed profileUrls from string:", profileUrls);
       } else if (Array.isArray(req.body.profileUrls)) {
         profileUrls = req.body.profileUrls;
@@ -82,29 +151,78 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
     for (const { profile, profileUrl } of profileUrls) {
       if (!profileUrl) continue;
 
-      const username = profileUrl.split("/").filter(Boolean).pop();
+      const username = extractUsername(profile, profileUrl);
+      if (!username) {
+        console.warn(`Unable to extract username for ${profile}:`, profileUrl);
+        profilesFailed++;
+        continue;
+      }
 
       let data;
 
       switch (profile) {
         case "github":
-          data = await fetchGithub(username);
-          await githubModel.create({ userId, ...data });
+          try {
+            data = await fetchGithub(username);
+            await githubModel.findOneAndUpdate(
+              { userId },
+              { userId, ...data },
+              { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+            profilesQueued++;
+            console.log("GitHub saved successfully");
+          } catch (ghErr) {
+            profilesFailed++;
+            console.warn("GitHub save failed:", ghErr.message);
+          }
           break;
 
         case "leetcode":
-          data = await fetchLeetcode(username);
-          await leetcodeModel.create({ userId, ...data });
+          try {
+            data = await fetchLeetcode(username);
+            await leetcodeModel.findOneAndUpdate(
+              { userId },
+              { userId, ...data },
+              { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+            profilesQueued++;
+            console.log("LeetCode saved successfully");
+          } catch (lcErr) {
+            profilesFailed++;
+            console.warn("LeetCode save failed:", lcErr.message);
+          }
           break;
 
         case "codeforces":
-          data = await fetchCodeforces(username);
-          await codeforcesModel.create({ userId, ...data });
+          try {
+            data = await fetchCodeforces(username);
+            await codeforcesModel.findOneAndUpdate(
+              { userId },
+              { userId, ...data },
+              { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+            profilesQueued++;
+            console.log("Codeforces saved successfully");
+          } catch (cfErr) {
+            profilesFailed++;
+            console.warn("Codeforces save failed:", cfErr.message);
+          }
           break;
 
         case "codechef":
-          data = await fetchCodechef(username);
-          await codechefModel.create({ userId, ...data });
+          try {
+            data = await fetchCodechef(username);
+            await codechefModel.findOneAndUpdate(
+              { userId },
+              { userId, ...data },
+              { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+            profilesQueued++;
+            console.log("CodeChef saved successfully");
+          } catch (ccErr) {
+            profilesFailed++;
+            console.warn("CodeChef save failed:", ccErr.message);
+          }
           break;
 
         default:

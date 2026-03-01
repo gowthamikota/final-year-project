@@ -6,6 +6,7 @@ const codechefProfileSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      unique: true, // 🔥 One Codechef profile per user
     },
 
     rating: { type: Number, default: 0 },

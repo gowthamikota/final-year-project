@@ -28,11 +28,12 @@ def preprocess():
 def analyze():
     data = request.get_json()
     user_id = data.get("userId")
+    job_role = data.get("jobRole", "")
 
     if not user_id:
         return jsonify({"error": "Missing userId"}), 400
 
-    result = analyze_profile(user_id)
+    result = analyze_profile(user_id, job_role)
     return jsonify(result)
 
 

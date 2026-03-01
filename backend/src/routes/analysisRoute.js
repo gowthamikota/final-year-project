@@ -1,11 +1,16 @@
 const express = require("express");
 const analysisRouter = express.Router();
 const axios = require("axios");
+const Groq = require("groq-sdk");
 const FinalResults = require("../models/finalResultData");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const AnalysisHistory = require("../models/analysisHistoryData");
+const { ObjectId } = require('mongoose').Types;
 const multer = require("multer");
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
+const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
 const PYTHON_SERVICE_URL =
   process.env.PYTHON_SERVICE_URL || "http://localhost:8000";
 
@@ -13,6 +18,7 @@ const PYTHON_SERVICE_URL =
 analysisRouter.post("/analysis/run", async (req, res) => {
   try {
     const userId = req.user?._id?.toString();
+    const jobRole = (req.body?.jobRole || "").toString().trim();
 
     if (!userId) {
       return res.status(401).json({
@@ -23,7 +29,7 @@ analysisRouter.post("/analysis/run", async (req, res) => {
 
     const response = await axios.post(
       `${PYTHON_SERVICE_URL}/analyze-profile`,
-      { userId },
+      { userId, jobRole },
       { timeout: 60000 }
     );
 
@@ -58,7 +64,28 @@ analysisRouter.get("/analysis/:userId", async (req, res) => {
     const { userId } = req.params;
     const { jobRole } = req.query;
 
-    const result = await FinalResults.findOne({ userId });
+    // Convert string userId to ObjectId for database query
+    const { ObjectId } = require('mongoose').Types;
+    let objectId;
+    try {
+      objectId = new ObjectId(userId);
+    } catch (err) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid userId format",
+      });
+    }
+
+    const result = await FinalResults.findOne({ userId: objectId });
+    const history = await AnalysisHistory.find({ userId: objectId })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
+
+    console.log("🔍 DEBUG - Analysis result for userId:", userId);
+    console.log("  Scores:", result?.scores);
+    console.log("  Final Score:", result?.finalScore);
+    console.log("  History count:", history?.length);
 
     if (!result) {
       return res.status(404).json({
@@ -82,16 +109,27 @@ Generate:
 Keep concise.
 `;
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
+    const completion = await groq.chat.completions.create({
+      model: GROQ_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: "You are a concise technical career coach for software developers.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.3,
     });
 
-    const response = await model.generateContent(prompt);
-    const suggestions = response.response.text();
+    const suggestions = completion.choices?.[0]?.message?.content || "";
 
     return res.json({
       success: true,
       data: result,
+      history,
       suggestions,
     });
 

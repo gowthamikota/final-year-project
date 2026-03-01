@@ -1,6 +1,5 @@
 const express = require("express");
 const profileRouter = express.Router();
-const bcrypt = require("bcrypt");
 
 const { validateEditprofile } = require("../services/validate.js");
 
@@ -32,12 +31,8 @@ profileRouter.patch("/profile/update", async (req, res) => {
     const user = req.user;
 
     for (const key of Object.keys(req.body)) {
-      if (key === "password") {
-        const hashed = await bcrypt.hash(req.body.password, 10);
-        user.password = hashed;
-      } else {
-        user[key] = req.body[key];
-      }
+      // For password, just set it directly - pre-save hook will hash it
+      user[key] = req.body[key];
     }
 
     await user.save();
