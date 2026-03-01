@@ -4,7 +4,7 @@ const resumeRouter = express.Router();
 const { uploader } = require("../middlewares/uploaderMiddleware");
 const { mergeData } = require("../services/mergeDocs");
 const { runPreprocessor } = require("../services/runprocessor");
-const resumeDataModel = require("../models/resumeParsedData");
+const resumeParsedDataModel = require("../models/resumeParsedData");
 
 const githubModel = require("../models/githubData");
 const leetcodeModel = require("../models/leetcodeData");
@@ -28,7 +28,7 @@ resumeRouter.get("/resume/parsed/:userId", async (req, res) => {
       });
     }
 
-    const parsedResume = await resumeDataModel
+    const parsedResume = await resumeParsedDataModel
       .findOne({ userId })
       .sort({ createdAt: -1 });
 
