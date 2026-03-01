@@ -2,7 +2,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { parser } = require("../services/parser");
-const resumeDataModel = require("../models/resumeParsedData");
+const resumeParsedDataModel = require("../models/resumeParsedData");
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, "../uploads/");
@@ -78,7 +78,7 @@ async function uploader(req, res, next) {
         });
       }
 
-      const savedResume = await resumeDataModel.create({
+      const savedResume = await resumeParsedDataModel.create({
         userId,
         ...parsed,
         filePath,
