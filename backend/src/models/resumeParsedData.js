@@ -35,10 +35,28 @@ const resumeParsedDataSchema = new mongoose.Schema(
       default: [],
     },
 
-    // ✅ Education as full text block
+    // ✅ Education entries
     education: {
-      type: String,
-      default: "",
+      type: [String],
+      default: [],
+    },
+
+    // ✅ Experience entries
+    experience: {
+      type: [String],
+      default: [],
+    },
+
+    // ✅ Certifications entries
+    certifications: {
+      type: [String],
+      default: [],
+    },
+
+    // ✅ Achievements entries
+    achievements: {
+      type: [String],
+      default: [],
     },
 
     // ✅ Full resume text (for embeddings + scoring)
