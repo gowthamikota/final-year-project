@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const resumeDataSchema = new mongoose.Schema(
+const resumeParsedDataSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -52,9 +52,12 @@ const resumeDataSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    collection: "resumeparseddatas",
+  }
 );
 
-const resumeDataModel = mongoose.model("ResumeParsedData", resumeDataSchema);
+const resumeParsedDataModel = mongoose.model("ResumeParsedData", resumeParsedDataSchema);
 
-module.exports = resumeDataModel;
+module.exports = resumeParsedDataModel;
