@@ -25,6 +25,13 @@ const analysisHistorySchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    confidenceScore: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
   },
   { timestamps: true }
 );
