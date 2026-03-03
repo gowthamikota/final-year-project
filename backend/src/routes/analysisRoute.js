@@ -99,14 +99,23 @@ Developer Scores:
 ${JSON.stringify(result.scores, null, 2)}
 
 Final Score: ${result.finalScore}
+Confidence Score: ${result.confidenceScore}% (Based on ${Object.keys(result.scores).filter(k => result.scores[k] > 0).length} connected platforms and activity metrics)
+
 Target Role: ${jobRole || "Not specified"}
 
+The confidence score indicates how reliable this evaluation is based on available data:
+- Higher confidence (>70%): Multiple platforms connected with strong activity
+- Medium confidence (40-70%): Some platforms connected with moderate activity  
+- Lower confidence (<40%): Limited data available, recommendation may be less accurate
+
 Generate:
-- Key strengths
-- Weak skills
-- 4 improvement steps
+- Key strengths (based on highest scoring platforms)
+- Weak skills (platforms with low scores or missing data)
+- 4 actionable improvement steps (prioritize based on confidence score - if confidence is low, emphasize data collection)
 - Resume suggestions
-Keep concise.
+- Brief explanation of what the confidence score means for this candidate
+
+Keep concise and actionable.
 `;
 
     const completion = await groq.chat.completions.create({
@@ -114,7 +123,7 @@ Keep concise.
       messages: [
         {
           role: "system",
-          content: "You are a concise technical career coach for software developers.",
+          content: "You are a concise technical career coach for software developers. You help interpret candidate evaluation data, including confidence scores that indicate data reliability. You do NOT calculate scores - you explain them.",
         },
         {
           role: "user",
