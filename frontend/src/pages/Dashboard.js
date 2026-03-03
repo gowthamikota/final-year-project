@@ -38,6 +38,7 @@ function Dashboard() {
     stats: {
       profileStrength: 0,
       avgMatchScore: 0,
+      confidenceScore: 0,
       jobsApplied: 0,
       interviews: 0,
       profileViews: 0
@@ -107,7 +108,7 @@ function Dashboard() {
   const hydrateDashboardFromApi = useCallback((apiResult) => {
     if (!apiResult?.data) return;
 
-    const { finalScore = 0, scores = {}, updatedAt } = apiResult.data;
+    const { finalScore = 0, scores = {}, confidenceScore = 0, updatedAt } = apiResult.data;
     
     // DEBUG: Log actual scores received from API
     console.log("🔍 API Scores Received:", scores);
@@ -138,6 +139,7 @@ function Dashboard() {
       stats: {
         profileStrength: Math.round(avgScore),
         avgMatchScore: Math.round(Number(finalScore || 0)),
+        confidenceScore: Number(confidenceScore || 0),
         jobsApplied: 0,
         interviews: 0,
         profileViews: 0,
@@ -145,6 +147,8 @@ function Dashboard() {
       recentAnalyses,
       skillGaps,
     });
+    
+    console.log("🎯 Confidence Score Set:", confidenceScore);
   }, [buildRecentAnalyses, buildSkillGaps]);
 
   // Fetch dashboard data from backend
@@ -332,6 +336,7 @@ function Dashboard() {
         setDetailedAnalysisData({
           finalScore: result.data.finalScore,
           scores: result.data.scores,
+          confidenceScore: result.data.confidenceScore || 0,
           suggestions: result.suggestions || 'Suggestions unavailable. Configure GEMINI_API_KEY.',
         });
         
@@ -382,6 +387,12 @@ function Dashboard() {
     );
   }
 
+  const getConfidenceLevel = (score) => {
+    if (score >= 70) return { level: 'High', color: 'green', bgColor: 'bg-green-50', textColor: 'text-green-700', badgeColor: 'bg-green-100', icon: '✓', description: 'Highly reliable evaluation' };
+    if (score >= 40) return { level: 'Medium', color: 'yellow', bgColor: 'bg-yellow-50', textColor: 'text-yellow-700', badgeColor: 'bg-yellow-100', icon: '!', description: 'Moderately reliable evaluation' };
+    return { level: 'Low', color: 'red', bgColor: 'bg-orange-50', textColor: 'text-orange-700', badgeColor: 'bg-orange-100', icon: '⚠', description: 'Limited data available' };
+  };
+
   const StatCard = ({ title, value, subtitle, icon, trend }) => (
     <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
       <div className="flex items-center justify-between">
@@ -399,6 +410,50 @@ function Dashboard() {
       </div>
     </div>
   );
+
+  const ConfidenceScoreCard = ({ score }) => {
+    const confidence = getConfidenceLevel(score);
+    
+    return (
+      <div className={`bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300`}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-600">Confidence Score</p>
+            <div className="flex items-center gap-3 mt-2">
+              <p className="text-3xl font-bold text-gray-900">{score.toFixed(0)}%</p>
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${confidence.badgeColor} ${confidence.textColor}`}>
+                {confidence.level}
+              </span>
+            </div>
+            <p className="text-sm text-gray-500 mt-1">{confidence.description}</p>
+          </div>
+          <div className={`text-2xl w-12 h-12 rounded-full ${confidence.bgColor} flex items-center justify-center ${confidence.textColor}`}>
+            {confidence.icon}
+          </div>
+        </div>
+        <div className="mt-4">
+          <div className="flex justify-between text-xs text-gray-500 mb-1">
+            <span>Data Reliability</span>
+            <span>{score.toFixed(1)}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className={`h-2 rounded-full transition-all duration-500 ${
+                confidence.level === 'High' ? 'bg-green-500' : 
+                confidence.level === 'Medium' ? 'bg-yellow-500' : 'bg-orange-500'
+              }`}
+              style={{ width: `${score}%` }}
+            ></div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            {score >= 70 ? 'Multiple platforms with strong activity data' : 
+             score >= 40 ? 'Some platforms connected. Add more for better accuracy' : 
+             'Connect more platforms to improve reliability'}
+          </p>
+        </div>
+      </div>
+    );
+  };
 
   const ProgressBar = ({ percentage, color = "blue" }) => {
     const colorClasses = {
@@ -452,7 +507,7 @@ function Dashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <StatCard 
             title="Profile Completeness" 
             value={`${dashboardData.stats.profileStrength}%`}
@@ -465,6 +520,7 @@ function Dashboard() {
             subtitle="Based on all platforms"
             icon="🎯"
           />
+          <ConfidenceScoreCard score={dashboardData.stats.confidenceScore} />
         </div>
 
         {/* Main Content Grid */}
@@ -910,6 +966,51 @@ function Dashboard() {
                     </p>
                   </div>
                 </div>
+
+                {/* Confidence Score Display */}
+                {detailedAnalysisData.confidenceScore !== undefined && (
+                  <div className={`p-6 rounded-xl border-2 ${
+                    detailedAnalysisData.confidenceScore >= 70 ? 'bg-green-50 border-green-200' :
+                    detailedAnalysisData.confidenceScore >= 40 ? 'bg-yellow-50 border-yellow-200' :
+                    'bg-orange-50 border-orange-200'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xl">
+                            {detailedAnalysisData.confidenceScore >= 70 ? '✓' :
+                             detailedAnalysisData.confidenceScore >= 40 ? '!' : '⚠'}
+                          </span>
+                          <h3 className="text-lg font-bold text-gray-900">
+                            Confidence Score: {detailedAnalysisData.confidenceScore.toFixed(0)}%
+                          </h3>
+                        </div>
+                        <p className={`text-sm font-medium mb-2 ${
+                          detailedAnalysisData.confidenceScore >= 70 ? 'text-green-700' :
+                          detailedAnalysisData.confidenceScore >= 40 ? 'text-yellow-700' :
+                          'text-orange-700'
+                        }`}>
+                          {detailedAnalysisData.confidenceScore >= 70 ? 'High Reliability - Strong data coverage' :
+                           detailedAnalysisData.confidenceScore >= 40 ? 'Medium Reliability - Moderate data coverage' :
+                           'Low Reliability - Limited data available'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          This score indicates how reliable the overall evaluation is based on the number of connected platforms and activity level. 
+                          {detailedAnalysisData.confidenceScore < 70 && ' Consider connecting more platforms for better accuracy.'}
+                        </p>
+                      </div>
+                      <div className="text-right ml-4">
+                        <div className={`text-3xl font-bold ${
+                          detailedAnalysisData.confidenceScore >= 70 ? 'text-green-600' :
+                          detailedAnalysisData.confidenceScore >= 40 ? 'text-yellow-600' :
+                          'text-orange-600'
+                        }`}>
+                          {getConfidenceLevel(detailedAnalysisData.confidenceScore).level}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="bg-white border border-gray-200 rounded-xl p-6">
                   <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
