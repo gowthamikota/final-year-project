@@ -2,6 +2,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
+const skillMetadata = {
+  github: "Open Source Contribution",
+  leetcode: "Problem Solving & DSA",
+  codeforces: "Competitive Programming",
+  codechef: "Algorithm Optimization",
+  resume: "Resume Quality",
+};
+
 function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -46,14 +54,6 @@ function Dashboard() {
     codechef: 0,
     codeforces: 0
   });
-
-  const skillMetadata = {
-    github: "Open Source Contribution",
-    leetcode: "Problem Solving & DSA",
-    codeforces: "Competitive Programming",
-    codechef: "Algorithm Optimization",
-    resume: "Resume Quality",
-  };
 
   const getPriorityFromScore = useCallback((score) => {
     if (score < 40) return "High";
