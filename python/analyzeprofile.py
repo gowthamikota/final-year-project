@@ -51,6 +51,94 @@ ideal_vectors = {
     for key, text in ideal_profiles.items()
 }
 
+# ---------------- CONFIDENCE SCORE ----------------
+
+def calculate_confidence_score(user_id: str, scores: dict) -> float:
+    """
+    Calculate confidence score (0-100%) based on:
+    1. Number of connected platforms (60% weight)
+    2. Activity level across platforms (40% weight)
+    
+    Formula: confidence = (platforms/5) * 60 + (activity/100) * 40
+    """
+    
+    # Count platforms with actual data (non-zero scores)
+    # Exclude 'activity' as it's a derived metric
+    platform_keys = ['github', 'leetcode', 'codeforces', 'codechef', 'resume']
+    connected_platforms = sum(1 for p in platform_keys if scores.get(p, 0) > 0)
+    
+    # Calculate platform coverage (0-1)
+    platform_coverage = connected_platforms / len(platform_keys)
+    
+    # Load raw profile data to calculate activity score
+    try:
+        user_object_id = ObjectId(user_id)
+        profile = db.combineddatas.find_one({"userId": user_object_id})
+        resume = db.resumeparseddatas.find_one({"userId": user_object_id})
+        
+        activity_metrics = []
+        
+        # GitHub activity
+        if profile and profile.get('github'):
+            g = profile['github']
+            github_activity = min(100, (
+                g.get('publicRepos', 0) * 2 +
+                g.get('totalStars', 0) * 0.5 +
+                g.get('totalPRs', 0) * 1 +
+                g.get('followers', 0) * 0.3
+            ))
+            activity_metrics.append(github_activity)
+        
+        # LeetCode activity
+        if profile and profile.get('leetcode'):
+            lc = profile['leetcode']
+            leetcode_activity = min(100, (
+                lc.get('totalSolved', 0) * 0.2 +
+                lc.get('mediumSolved', 0) * 0.5 +
+                lc.get('hardSolved', 0) * 1 +
+                lc.get('contestsAttended', 0) * 2
+            ))
+            activity_metrics.append(leetcode_activity)
+        
+        # Codeforces activity
+        if profile and profile.get('codeforces'):
+            cf = profile['codeforces']
+            rating = cf.get('rating', 0)
+            codeforces_activity = min(100, rating / 30)  # Normalize rating
+            activity_metrics.append(codeforces_activity)
+        
+        # CodeChef activity
+        if profile and profile.get('codechef'):
+            cc = profile['codechef']
+            codechef_activity = min(100, (
+                cc.get('rating', 0) / 30 +
+                cc.get('contestsParticipated', 0) * 2 +
+                cc.get('totalProblemsSolved', 0) * 0.1
+            ))
+            activity_metrics.append(codechef_activity)
+        
+        # Resume quality (skills count as proxy)
+        if resume and resume.get('skills'):
+            resume_activity = min(100, len(resume.get('skills', [])) * 5)
+            activity_metrics.append(resume_activity)
+        
+        # Average activity score across all platforms with data
+        activity_score = sum(activity_metrics) / len(activity_metrics) if activity_metrics else 0
+        
+    except Exception as e:
+        print(f"⚠️  Warning: Could not calculate activity metrics: {str(e)}")
+        activity_score = 0
+    
+    # Calculate final confidence score
+    confidence = (platform_coverage * 60) + (activity_score / 100 * 40)
+    
+    print(f"🎯 Confidence Score Calculation:")
+    print(f"  Connected platforms: {connected_platforms}/{len(platform_keys)} ({platform_coverage:.1%})")
+    print(f"  Activity score: {activity_score:.2f}/100")
+    print(f"  Final confidence: {confidence:.2f}%")
+    
+    return round(confidence, 2)
+
 # ---------------- MAIN ANALYSIS ----------------
 
 def analyze_profile(user_id: str, job_role: str = ""):
@@ -119,6 +207,10 @@ def analyze_profile(user_id: str, job_role: str = ""):
     
     print(f"🔍 DEBUG - Final weighted score: {final_score}")
 
+    # ---------------- CALCULATE CONFIDENCE SCORE ----------------
+    
+    confidence_score = calculate_confidence_score(user_id, scores)
+
     # ---------------- SAVE TO MONGO ----------------
 
     db.finalresults.update_one(
@@ -127,6 +219,7 @@ def analyze_profile(user_id: str, job_role: str = ""):
             "$set": {
                 "scores": scores,
                 "finalScore": final_score,
+                "confidenceScore": confidence_score,
                 "updatedAt": datetime.utcnow()
             }
         },
@@ -139,6 +232,7 @@ def analyze_profile(user_id: str, job_role: str = ""):
             "jobRole": (job_role or "").strip(),
             "scores": scores,
             "finalScore": final_score,
+            "confidenceScore": confidence_score,
             "createdAt": datetime.utcnow(),
             "updatedAt": datetime.utcnow(),
         }
@@ -147,5 +241,6 @@ def analyze_profile(user_id: str, job_role: str = ""):
     return {
         "success": True,
         "scores": scores,
-        "finalScore": final_score
+        "finalScore": final_score,
+        "confidenceScore": confidence_score
     }
