@@ -519,16 +519,16 @@ function Home() {
               </p>
               <div className="flex space-x-4">
                 {["twitter", "linkedin", "github", "facebook"].map((social) => (
-                  <a
+                  <button
                     key={social}
-                    href="#"
+                    onClick={(e) => e.preventDefault()}
                     className="text-gray-400 hover:text-white transition-colors duration-200"
                   >
                     <span className="sr-only">{social}</span>
                     <div className="w-6 h-6 bg-gray-700 rounded flex items-center justify-center">
                       {social.charAt(0).toUpperCase()}
                     </div>
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>
@@ -577,28 +577,28 @@ function Home() {
               <h3 className="font-semibold mb-4">Legal</h3>
               <ul className="space-y-2">
                 <li>
-                  <a
-                    href="#"
+                  <button
+                    onClick={(e) => e.preventDefault()}
                     className="text-gray-400 hover:text-white transition-colors duration-200"
                   >
                     Privacy Policy
-                  </a>
+                  </button>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <button
+                    onClick={(e) => e.preventDefault()}
                     className="text-gray-400 hover:text-white transition-colors duration-200"
                   >
                     Terms of Service
-                  </a>
+                  </button>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <button
+                    onClick={(e) => e.preventDefault()}
                     className="text-gray-400 hover:text-white transition-colors duration-200"
                   >
                     Cookie Policy
-                  </a>
+                  </button>
                 </li>
               </ul>
             </div>
