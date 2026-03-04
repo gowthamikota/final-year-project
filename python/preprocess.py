@@ -65,13 +65,45 @@ def preprocess_user(user_id):
     cf = profile.get("codeforces", {})
     cc = profile.get("codechef", {})
 
+    # Enhanced GitHub description with new metrics
+    github_desc = f"""
+    GitHub Profile: 
+    - Followers {g.get('followers',0)} Stars {g.get('totalStars',0)} Forks {g.get('totalForks',0)}
+    - Total Commits {g.get('totalCommits',0)} Average {g.get('avgCommitsPerRepo',0)} per repo
+    - Active Repos {g.get('activeRepositories',0)} of {g.get('publicRepos',0)}
+    - Commit Frequency {g.get('commitFrequency','low')} with {g.get('contributionConsistency',0)}% consistency
+    - Documentation Quality {g.get('documentationQuality',0)}% with {g.get('repositoriesWithREADME',0)} README files
+    - Project Complexity {g.get('projectComplexity',0)}% Languages {len(g.get('topLanguages',[]))}
+    - Collaboration Score {g.get('collaborationScore',0)}% with {g.get('totalPRs',0)} PRs
+    """
+
+    # Generate dynamic activity description based on actual metrics
+    activity_parts = []
+    
+    if g.get('followers', 0) > 0:
+        activity_parts.append(f"GitHub: {g.get('followers', 0)} followers, {g.get('totalCommits', 0)} commits")
+    
+    if lc.get('totalSolved', 0) > 0:
+        activity_parts.append(f"LeetCode: {lc.get('totalSolved', 0)} problems solved, {lc.get('contestsAttended', 0)} contests")
+    
+    if cf.get('rating', 0) > 0:
+        activity_parts.append(f"Codeforces: {cf.get('rating', 0)} rating")
+    
+    if cc.get('rating', 0) > 0:
+        activity_parts.append(f"CodeChef: {cc.get('rating', 0)} rating")
+    
+    if len(resume.get('skills', [])) > 0:
+        activity_parts.append(f"{len(resume.get('skills', []))} technical skills")
+    
+    activity_desc = " | ".join(activity_parts) if activity_parts else "Limited coding platform activity"
+
     blocks = {
-        "github": f"Followers {g.get('followers',0)} Stars {g.get('totalStars',0)} PRs {g.get('totalPRs',0)}",
+        "github": github_desc,
         "leetcode": f"Solved {lc.get('totalSolved',0)} Ranking {lc.get('ranking',0)}",
         "codeforces": f"Rating {cf.get('rating',0)} Max {cf.get('maxRating',0)}",
         "codechef": f"Rating {cc.get('rating',0)} Stars {cc.get('stars',0)}",
         "resume": f"Skills {' '.join(resume.get('skills',[]))}",
-        "activity": f"Overall coding activity"
+        "activity": activity_desc
     }
     
     # FILTER: Only embed platforms with actual data (not all zeros)
