@@ -78,15 +78,26 @@ def calculate_confidence_score(user_id: str, scores: dict) -> float:
         
         activity_metrics = []
         
-        # GitHub activity
+        # GitHub activity - Enhanced with new metrics
         if profile and profile.get('github'):
             g = profile['github']
-            github_activity = min(100, (
+            # Old metrics (basic scoring)
+            basic_score = (
                 g.get('publicRepos', 0) * 2 +
                 g.get('totalStars', 0) * 0.5 +
                 g.get('totalPRs', 0) * 1 +
                 g.get('followers', 0) * 0.3
-            ))
+            )
+            # New enhanced metrics (higher weight for quality signals)
+            enhanced_score = (
+                g.get('totalCommits', 0) * 0.1 +  # Commit activity
+                (20 if g.get('commitFrequency', 'low') in ['high', 'very-high'] else 5) +  # Commit frequency bonus
+                g.get('documentationQuality', 0) * 0.3 +  # Documentation quality (README presence)
+                g.get('collaborationScore', 0) * 0.2 +  # Forks + PRs collaboration
+                g.get('contributionConsistency', 0) * 0.15 +  # Consistent contributions
+                g.get('projectComplexity', 0) * 0.1  # Complex projects
+            )
+            github_activity = min(100, basic_score + enhanced_score)
             activity_metrics.append(github_activity)
         
         # LeetCode activity
