@@ -9,6 +9,8 @@ const codechefProfileSchema = new mongoose.Schema(
       unique: true, // 🔥 One Codechef profile per user
     },
 
+    name: { type: String, default: "" },
+
     rating: { type: Number, default: 0 },
     stars: { type: Number, default: 0 },
 
