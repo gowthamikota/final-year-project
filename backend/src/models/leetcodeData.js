@@ -9,6 +9,8 @@ const leetcodeProfileSchema = new mongoose.Schema(
       unique: true, // 🔥 One Leetcode profile per user
     },
 
+    name: { type: String, default: "" },
+
     totalSolved: { type: Number, default: 0 },
     easySolved: { type: Number, default: 0 },
     mediumSolved: { type: Number, default: 0 },
