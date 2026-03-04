@@ -22,9 +22,21 @@ async function mergeData(userId) {
       totalPRs: gh?.totalPRs || 0,
       totalIssues: gh?.totalIssues || 0,
       topLanguages: gh?.topLanguages || [],
+      // Enhanced metrics
+      totalCommits: gh?.totalCommits || 0,
+      avgCommitsPerRepo: gh?.avgCommitsPerRepo || 0,
+      activeRepositories: gh?.activeRepositories || 0,
+      repositoriesWithREADME: gh?.repositoriesWithREADME || 0,
+      lastCommitDate: gh?.lastCommitDate || null,
+      commitFrequency: gh?.commitFrequency || "low",
+      projectComplexity: gh?.projectComplexity || 0,
+      documentationQuality: gh?.documentationQuality || 0,
+      collaborationScore: gh?.collaborationScore || 0,
+      contributionConsistency: gh?.contributionConsistency || 0,
     },
 
     leetcode: {
+      name: lc?.name || "",
       totalSolved: lc?.totalSolved || 0,
       easySolved: lc?.easySolved || 0,
       mediumSolved: lc?.mediumSolved || 0,
@@ -46,6 +58,7 @@ async function mergeData(userId) {
     },
 
     codechef: {
+      name: cc?.name || "",
       rating: cc?.rating || 0,
       stars: cc?.stars || 0,
       contestsParticipated: cc?.contestsParticipated || 0,
