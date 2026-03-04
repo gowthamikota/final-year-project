@@ -21,6 +21,18 @@ const gitHubDataSchema = new mongoose.Schema(
     totalIssues: { type: Number, default: 0 },
 
     topLanguages: [{ type: String }],
+
+    // Enhanced metrics for better evaluation
+    totalCommits: { type: Number, default: 0 },
+    avgCommitsPerRepo: { type: Number, default: 0 },
+    activeRepositories: { type: Number, default: 0 },
+    repositoriesWithREADME: { type: Number, default: 0 },
+    lastCommitDate: { type: Date, default: null },
+    commitFrequency: { type: String, default: "low" }, // low, moderate, high, very-high
+    projectComplexity: { type: Number, default: 0 }, // 0-100 based on languages and forks
+    documentationQuality: { type: Number, default: 0 }, // 0-100 based on README presence
+    collaborationScore: { type: Number, default: 0 }, // 0-100 based on forks and PRs
+    contributionConsistency: { type: Number, default: 0 }, // 0-100 based on commit patterns
   },
   { timestamps: true }
 );
