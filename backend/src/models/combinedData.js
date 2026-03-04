@@ -29,6 +29,7 @@ const combinedDataSchema = new mongoose.Schema({
   },
 
   leetcode: {
+    name: { type: String, default: "" },
     totalSolved: { type: Number, default: 0 },
     easySolved: { type: Number, default: 0 },
     mediumSolved: { type: Number, default: 0 },
@@ -50,6 +51,7 @@ const combinedDataSchema = new mongoose.Schema({
   },
 
   codechef: {
+    name: { type: String, default: "" },
     rating: { type: Number, default: 0 },
     stars: { type: Number, default: 0 },
     contestsParticipated: { type: Number, default: 0 },
