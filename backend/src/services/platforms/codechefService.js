@@ -14,6 +14,13 @@ async function fetchCodechef(username) {
 
   const $ = cheerio.load(res.data);
 
+  const pageTitle = $("meta[property='og:title']").attr("content") || "";
+  const profileName =
+    $(".user-details-container header h1").first().text().trim() ||
+    $(".user-details h1").first().text().trim() ||
+    pageTitle.replace(/\s*\|\s*CodeChef.*$/i, "").trim() ||
+    username;
+
 
   const rating = parseInt($(".rating-number").text()) || 0;
   const starsText = $(".rating").first().text();
@@ -38,6 +45,7 @@ async function fetchCodechef(username) {
     parseInt($(".rating-ranks ul li:nth-child(2) strong").text()) || 0;
 
   return {
+    name: profileName,
     rating,
     stars,
     contestsParticipated,
