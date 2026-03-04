@@ -16,7 +16,9 @@ async function fetchLeetcode(username) {
       query: `
         query getUserProfile($username: String!) {
           matchedUser(username: $username) {
+            username
             profile {
+              realName
               ranking
               reputation
             }
@@ -76,7 +78,10 @@ async function fetchLeetcode(username) {
 
     const contestData = contestRes.data?.data?.userContestRanking;
 
+    const profileName = user.profile?.realName || user.username || username;
+
     return {
+      name: profileName,
       totalSolved: easy + medium + hard,
       easySolved: easy,
       mediumSolved: medium,
