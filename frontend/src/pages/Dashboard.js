@@ -187,8 +187,8 @@ function Dashboard() {
     
     // Validate step 1
     if (analysisStep === 1) {
-      if (!analysisForm.jobRole || !analysisForm.jobDescription || !analysisForm.resume) {
-        alert("Please fill in all fields");
+      if (!analysisForm.jobRole || !analysisForm.jobDescription) {
+        alert("Please fill in job role and description");
         return;
       }
       // Move to step 2
@@ -217,9 +217,11 @@ function Dashboard() {
       if (analysisForm.codechef) profileUrls.push({ profile: 'codechef', profileUrl: analysisForm.codechef });
       if (analysisForm.codeforces) profileUrls.push({ profile: 'codeforces', profileUrl: analysisForm.codeforces });
 
-      // Create form data: include resume + profileUrls
+      // Create form data: include resume (if provided) + profileUrls
       const formData = new FormData();
-      formData.append('resume', analysisForm.resume);
+      if (analysisForm.resume) {
+        formData.append('resume', analysisForm.resume);
+      }
       formData.append('profileUrls', JSON.stringify(profileUrls));
 
       // Preprocess via resume/upload
@@ -351,6 +353,21 @@ function Dashboard() {
       console.error('Get analysis error:', err);
       alert('Unable to get detailed analysis. Please ensure analysis completed.');
     }
+  };
+
+  const handleOpenAnalysisModal = () => {
+    // Reset form state when opening modal
+    setAnalysisForm({
+      jobRole: "",
+      jobDescription: "",
+      resume: null,
+      github: "",
+      leetcode: "",
+      codechef: "",
+      codeforces: ""
+    });
+    setAnalysisStep(1);
+    setShowAnalysisModal(true);
   };
 
   const handleFileUpload = (e) => {
@@ -497,7 +514,7 @@ function Dashboard() {
             </div>
             <div className="mt-4 sm:mt-0">
               <button 
-                onClick={() => setShowAnalysisModal(true)}
+                onClick={handleOpenAnalysisModal}
                 className="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl hover:-translate-y-0.5"
               >
                 + New Analysis
@@ -558,7 +575,7 @@ function Dashboard() {
                       ))}
                     </div>
                     <button 
-                      onClick={() => setShowAnalysisModal(true)}
+                      onClick={handleOpenAnalysisModal}
                       className="w-full mt-6 py-3 text-blue-600 hover:bg-blue-50 rounded-xl font-medium transition-colors duration-200"
                     >
                       Run New Analysis →
@@ -570,7 +587,7 @@ function Dashboard() {
                     <p className="text-gray-700 font-medium mb-2">No analyses yet</p>
                     <p className="text-gray-500 text-sm mb-6">Run your first profile analysis to see results here</p>
                     <button 
-                      onClick={() => setShowAnalysisModal(true)}
+                      onClick={handleOpenAnalysisModal}
                       className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors inline-flex items-center gap-2"
                     >
                       <span>+</span> Start Analysis
@@ -778,12 +795,11 @@ function Dashboard() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Upload Resume <span className="text-red-500">*</span>
+                        Upload Resume <span className="text-gray-500 text-xs font-normal ml-1">(optional)</span>
                       </label>
                       <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-400 transition-colors">
                         <input
                           type="file"
-                          required
                           accept=".pdf,.doc,.docx"
                           onChange={handleFileUpload}
                           className="hidden"
@@ -797,7 +813,7 @@ function Dashboard() {
                             <p className="mt-2 text-sm font-medium text-blue-600">
                               {analysisForm.resume ? analysisForm.resume.name : "Click to upload"}
                             </p>
-                            <p className="text-xs text-gray-500 mt-1">PDF, DOC, or DOCX (max 5MB)</p>
+                            <p className="text-xs text-gray-500 mt-1">PDF, DOC, or DOCX • Auto-detects if same as profile resume</p>
                           </div>
                         </label>
                       </div>
