@@ -16,6 +16,24 @@ const { fetchLeetcode } = require("../services/platforms/leetcodeService");
 const { fetchCodeforces } = require("../services/platforms/codeforcesService");
 const { fetchCodechef } = require("../services/platforms/codechefService");
 
+// Helper: Compare two objects (exclude timestamps and _id)
+const hasDataChanged = (existing, newData) => {
+  if (!existing) return true; // No existing data, so it's new
+  
+  // Compare all fields except MongoDB metadata
+  const oldData = { ...existing.toObject() };
+  delete oldData._id;
+  delete oldData.__v;
+  delete oldData.createdAt;
+  delete oldData.updatedAt;
+  delete oldData.userId;
+  
+  const freshData = { ...newData };
+  delete freshData.userId;
+  
+  return JSON.stringify(oldData) !== JSON.stringify(freshData);
+};
+
 // ---------------- GET PARSED RESUME ----------------
 resumeRouter.get("/resume/parsed/:userId", async (req, res) => {
   try {
@@ -200,14 +218,25 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
       switch (profile) {
         case "github":
           try {
+            // Check existing data first
+            const existingGithub = await githubModel.findOne({ userId });
+            
+            // Fetch fresh data
             data = await fetchGithub(username);
-            await githubModel.findOneAndUpdate(
-              { userId },
-              { userId, ...data },
-              { upsert: true, new: true, setDefaultsOnInsert: true }
-            );
-            profilesQueued++;
-            console.log("GitHub saved successfully");
+            
+            // Only update if data actually changed
+            if (hasDataChanged(existingGithub, data)) {
+              await githubModel.findOneAndUpdate(
+                { userId },
+                { userId, ...data },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+              );
+              profilesQueued++;
+              console.log("✅ GitHub data updated (changes detected)");
+            } else {
+              profilesQueued++;
+              console.log("♻️ GitHub data unchanged, skipped DB write");
+            }
           } catch (ghErr) {
             profilesFailed++;
             console.warn("GitHub save failed:", ghErr.message);
@@ -216,14 +245,21 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
 
         case "leetcode":
           try {
+            const existingLeetcode = await leetcodeModel.findOne({ userId });
             data = await fetchLeetcode(username);
-            await leetcodeModel.findOneAndUpdate(
-              { userId },
-              { userId, ...data },
-              { upsert: true, new: true, setDefaultsOnInsert: true }
-            );
-            profilesQueued++;
-            console.log("LeetCode saved successfully");
+            
+            if (hasDataChanged(existingLeetcode, data)) {
+              await leetcodeModel.findOneAndUpdate(
+                { userId },
+                { userId, ...data },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+              );
+              profilesQueued++;
+              console.log("✅ LeetCode data updated (changes detected)");
+            } else {
+              profilesQueued++;
+              console.log("♻️ LeetCode data unchanged, skipped DB write");
+            }
           } catch (lcErr) {
             profilesFailed++;
             console.warn("LeetCode save failed:", lcErr.message);
@@ -232,14 +268,21 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
 
         case "codeforces":
           try {
+            const existingCodeforces = await codeforcesModel.findOne({ userId });
             data = await fetchCodeforces(username);
-            await codeforcesModel.findOneAndUpdate(
-              { userId },
-              { userId, ...data },
-              { upsert: true, new: true, setDefaultsOnInsert: true }
-            );
-            profilesQueued++;
-            console.log("Codeforces saved successfully");
+            
+            if (hasDataChanged(existingCodeforces, data)) {
+              await codeforcesModel.findOneAndUpdate(
+                { userId },
+                { userId, ...data },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+              );
+              profilesQueued++;
+              console.log("✅ Codeforces data updated (changes detected)");
+            } else {
+              profilesQueued++;
+              console.log("♻️ Codeforces data unchanged, skipped DB write");
+            }
           } catch (cfErr) {
             profilesFailed++;
             console.warn("Codeforces save failed:", cfErr.message);
@@ -248,14 +291,21 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
 
         case "codechef":
           try {
+            const existingCodechef = await codechefModel.findOne({ userId });
             data = await fetchCodechef(username);
-            await codechefModel.findOneAndUpdate(
-              { userId },
-              { userId, ...data },
-              { upsert: true, new: true, setDefaultsOnInsert: true }
-            );
-            profilesQueued++;
-            console.log("CodeChef saved successfully");
+            
+            if (hasDataChanged(existingCodechef, data)) {
+              await codechefModel.findOneAndUpdate(
+                { userId },
+                { userId, ...data },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+              );
+              profilesQueued++;
+              console.log("✅ CodeChef data updated (changes detected)");
+            } else {
+              profilesQueued++;
+              console.log("♻️ CodeChef data unchanged, skipped DB write");
+            }
           } catch (ccErr) {
             profilesFailed++;
             console.warn("CodeChef save failed:", ccErr.message);
