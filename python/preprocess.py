@@ -55,10 +55,14 @@ def preprocess_user(user_id):
     if not resume:
         return {"success": False, "error": "Resume data missing"}
 
-    print(f"🔍 DEBUG - Profile data for user {user_id}:")
-    print(f"  GitHub followers: {profile.get('github', {}).get('followers', 0)}")
-    print(f"  LeetCode solved: {profile.get('leetcode', {}).get('totalSolved', 0)}")
-    print(f"  Resume skills count: {len(resume.get('skills', []))}")
+    print("\n" + "="*70)
+    print("📊 PREPROCESSING - PROFILE DATA SUMMARY")
+    print("="*70)
+    print(f"User ID: {user_id}")
+    print(f"  • GitHub followers: {profile.get('github', {}).get('followers', 0)}")
+    print(f"  • LeetCode solved: {profile.get('leetcode', {}).get('totalSolved', 0)}")
+    print(f"  • Resume skills: {len(resume.get('skills', []))}")
+    print("="*70 + "\n")
 
     g = profile.get("github", {})
     lc = profile.get("leetcode", {})
@@ -127,14 +131,19 @@ def preprocess_user(user_id):
     # Always include activity
     platforms_to_embed['activity'] = blocks['activity']
     
-    print("🔍 DEBUG - Text blocks being embedded:")
+    print("\n" + "="*70)
+    print("🔄 EMBEDDING GENERATION")
+    print("="*70)
     for platform, text in platforms_to_embed.items():
         print(f"  ✓ {platform}: {text}")
     
     # Show skipped platforms
     skipped = set(blocks.keys()) - set(platforms_to_embed.keys())
-    for platform in skipped:
-        print(f"  ✗ {platform}: SKIPPED (no data)")
+    if skipped:
+        print("\n  Skipped platforms:")
+        for platform in skipped:
+            print(f"  ✗ {platform}: SKIPPED (no data)")
+    print("="*70 + "\n")
 
     # Remove old embeddings for this user
     db.embeddings.delete_many({"userId": user_id})
