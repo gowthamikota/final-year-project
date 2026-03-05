@@ -305,7 +305,7 @@ function Home() {
                 icon: "🌐",
                 title: "Multi-Platform Integration",
                 description:
-                  "Connect your GitHub, LinkedIn, and portfolio for a complete professional picture beyond just your resume",
+                  "Connect your GitHub and Coding profiles for a complete professional picture beyond just your resume",
               },
               {
                 icon: "🔍",
