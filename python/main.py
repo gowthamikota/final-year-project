@@ -2,12 +2,23 @@ from flask import Flask, request, jsonify
 from analyzeprofile import analyze_profile
 from preprocess import preprocess_user
 from resumeparser import parse_resume
+import uuid
+import logging
 
 app = Flask(__name__)
+
+# Configure logging to see request flow
+logging.basicConfig(level=logging.INFO)
+
+# Suppress verbose Flask logs
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.WARNING)
 
 
 @app.route("/preprocess", methods=["POST"])
 def preprocess():
+    request_id = str(uuid.uuid4())[:8]
+    print(f"\n🔴 [REQ-{request_id}] PREPROCESS START")
     try:
         data = request.get_json()
         user_id = data.get("userId")
@@ -16,9 +27,10 @@ def preprocess():
             return jsonify({"error": "Missing userId"}), 400
 
         result = preprocess_user(user_id)
+        print(f"🟢 [REQ-{request_id}] PREPROCESS END\n")
         return jsonify(result)
     except Exception as e:
-        print(f"Preprocess Error: {str(e)}")
+        print(f"⚠️  [REQ-{request_id}] Preprocess Error: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e), "success": False}), 500
@@ -26,6 +38,8 @@ def preprocess():
 
 @app.route("/analyze-profile", methods=["POST"])
 def analyze():
+    request_id = str(uuid.uuid4())[:8]
+    print(f"\n🔴 [REQ-{request_id}] ANALYSIS START")
     data = request.get_json()
     user_id = data.get("userId")
     job_role = data.get("jobRole", "")
@@ -34,6 +48,7 @@ def analyze():
         return jsonify({"error": "Missing userId"}), 400
 
     result = analyze_profile(user_id, job_role)
+    print(f"🟢 [REQ-{request_id}] ANALYSIS END\n")
     return jsonify(result)
 
 
@@ -58,4 +73,4 @@ def home():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    app.run(host="0.0.0.0", port=8000, debug=False, use_reloader=False)
