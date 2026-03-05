@@ -197,11 +197,6 @@ function Signup() {
                   onChange={handlePasswordChange}
                   required
                 />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                  <svg className="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
               </div>
               
               {/* Password Strength Meter */}
@@ -259,20 +254,10 @@ function Signup() {
                   onChange={(e) => setFormData({ ...formData, confirm: e.target.value })}
                   required
                 />
-                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                  {formData.confirm && (
-                    formData.password === formData.confirm ? (
-                      <svg className="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
-                      <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    )
-                  )}
-                </div>
               </div>
+              {formData.confirm && formData.password === formData.confirm && (
+                <p className="mt-1 text-sm text-green-600">Passwords match</p>
+              )}
               {formData.confirm && formData.password !== formData.confirm && (
                 <p className="mt-1 text-sm text-red-600">Passwords do not match</p>
               )}
