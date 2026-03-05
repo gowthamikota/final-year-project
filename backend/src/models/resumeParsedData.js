@@ -69,6 +69,12 @@ const resumeParsedDataSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+
+    // File hash (MD5) for detecting duplicate uploads
+    fileHash: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,
