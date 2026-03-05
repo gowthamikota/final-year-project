@@ -128,7 +128,7 @@ const userSchema = new mongoose.Schema(
 );
 
 // ================= INDEXES =================
-userSchema.index({ email: 1 });
+// Note: email already has unique index via unique: true in schema
 userSchema.index({ firstName: 1, lastName: 1 });
 
 // ================= PASSWORD HASHING =================
