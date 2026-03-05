@@ -103,18 +103,55 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
       });
     }
 
-    // Ensure resume was parsed by uploader middleware
-    if (!req.parsedResume) {
+    // Check if this is a simple resume upload (file only) or profile scraping (with URLs)
+    const hasFile = req.file;
+    const hasProfileUrls = req.body.profileUrls;
+    const noNewFile = req.noNewFile;
+    const resumeReuseReason = req.resumeReuseReason;
+
+    // If no new file and trying to scrape profiles, fetch existing resume from DB
+    let parsedResume = req.parsedResume;
+    if (noNewFile && hasProfileUrls && !parsedResume) {
+      try {
+        parsedResume = await resumeParsedDataModel
+          .findOne({ userId })
+          .sort({ createdAt: -1 });
+        
+        if (!parsedResume) {
+          return res.status(400).json({
+            success: false,
+            error: "No existing resume found. Please upload your resume first."
+          });
+        }
+        console.log("✅ Reusing existing resume (no new file provided) - NO PARSING");
+      } catch (err) {
+        console.error("Error fetching existing resume:", err.message);
+        return res.status(500).json({
+          success: false,
+          error: "Failed to retrieve existing resume"
+        });
+      }
+    } else if (!parsedResume && hasFile) {
+      // File was uploaded but not parsed
       console.error("Resume not parsed by uploader middleware");
       return res.status(400).json({
         success: false,
         error: "Resume file was not properly processed"
       });
+    } else if (!parsedResume && !hasFile && !hasProfileUrls) {
+      // No file, no existing resume
+      return res.status(400).json({
+        success: false,
+        error: "Resume file is required"
+      });
     }
 
-    // Check if this is a simple resume upload (file only) or profile scraping (with URLs)
-    const hasFile = req.file;
-    const hasProfileUrls = req.body.profileUrls;
+    // Log the reason
+    if (resumeReuseReason === "identical_hash") {
+      console.log("ℹ️ Using identical resume from profile (same file hash)");
+    } else if (parsedResume && hasFile) {
+      console.log("✅ New resume uploaded and parsed");
+    }
 
     // Handle simple resume file upload
     if (hasFile && !hasProfileUrls) {
@@ -122,7 +159,7 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
       return res.status(200).json({
         success: true,
         message: "Resume uploaded and parsed successfully",
-        data: req.parsedResume
+        data: parsedResume
       });
     }
 
