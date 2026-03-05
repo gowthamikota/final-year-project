@@ -43,11 +43,15 @@ def analyze():
     data = request.get_json()
     user_id = data.get("userId")
     job_role = data.get("jobRole", "")
+    job_description = data.get("jobDescription", "")
+    
+    # Combine job role and description for better skill extraction
+    combined_job_text = f"{job_role}\n{job_description}".strip()
 
     if not user_id:
         return jsonify({"error": "Missing userId"}), 400
 
-    result = analyze_profile(user_id, job_role)
+    result = analyze_profile(user_id, combined_job_text)
     print(f"🟢 [REQ-{request_id}] ANALYSIS END\n")
     return jsonify(result)
 
