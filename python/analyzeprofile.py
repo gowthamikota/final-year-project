@@ -143,10 +143,13 @@ def calculate_confidence_score(user_id: str, scores: dict) -> float:
     # Calculate final confidence score
     confidence = (platform_coverage * 60) + (activity_score / 100 * 40)
     
-    print(f"🎯 Confidence Score Calculation:")
-    print(f"  Connected platforms: {connected_platforms}/{len(platform_keys)} ({platform_coverage:.1%})")
-    print(f"  Activity score: {activity_score:.2f}/100")
-    print(f"  Final confidence: {confidence:.2f}%")
+    print("\n" + "="*70)
+    print("🎯 CONFIDENCE SCORE CALCULATION")
+    print("="*70)
+    print(f"Connected platforms: {connected_platforms}/{len(platform_keys)} ({platform_coverage:.1%})")
+    print(f"Activity score: {activity_score:.2f}/100")
+    print(f"\n→ Final Confidence: {confidence:.2f}%")
+    print("="*70 + "\n")
     
     return round(confidence, 2)
 
@@ -154,7 +157,7 @@ def calculate_confidence_score(user_id: str, scores: dict) -> float:
 
 def analyze_profile(user_id: str, job_role: str = ""):
 
-    print("Received userId:", user_id, type(user_id))
+    print("\nReceived userId:", user_id, type(user_id))
 
     if not isinstance(user_id, str):
         return {"success": False, "message": "Invalid userId format"}
@@ -166,7 +169,10 @@ def analyze_profile(user_id: str, job_role: str = ""):
 
     scores = {}
 
-    print(f"🔍 DEBUG - Analyzing profile for user: {user_id}")
+    print("\n" + "="*70)
+    print("🎯 PROFILE ANALYSIS - SIMILARITY SCORING")
+    print("="*70)
+    print(f"User ID: {user_id}\n")
     
     for platform, ideal_vector in ideal_vectors.items():
 
@@ -185,6 +191,8 @@ def analyze_profile(user_id: str, job_role: str = ""):
         similarity = cosine_similarity(user_vector, ideal_vector)
         scores[platform] = round(similarity * 100, 2)
         print(f"  ✓ {platform}: similarity={similarity:.4f}, score={scores[platform]}")
+    
+    print("="*70 + "\n")
 
     # ---------------- WEIGHTED SCORE ----------------
 
@@ -210,13 +218,16 @@ def analyze_profile(user_id: str, job_role: str = ""):
             2
         )
         
-        print(f"🔍 DEBUG - Platforms with data: {platforms_with_data}")
-        print(f"  Normalized weights: {normalized_weights}")
+        print("\n" + "="*70)
+        print("⚖️  WEIGHTED SCORE CALCULATION")
+        print("="*70)
+        print(f"Platforms with data: {platforms_with_data}")
+        print(f"Normalized weights: {normalized_weights}")
+        print(f"\n→ Final Weighted Score: {final_score}/100")
+        print("="*70 + "\n")
     else:
         final_score = 0
-        print(f"🔍 DEBUG - No platforms with data found")
-    
-    print(f"🔍 DEBUG - Final weighted score: {final_score}")
+        print("\n⚠️  No platforms with data found\n")
 
     # ---------------- CALCULATE CONFIDENCE SCORE ----------------
     
