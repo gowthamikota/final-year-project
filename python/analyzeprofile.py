@@ -1,4 +1,5 @@
 import os
+import logging
 import numpy as np
 import faiss
 from datetime import datetime
@@ -6,6 +7,7 @@ from dotenv import load_dotenv
 from bson import ObjectId
 from pymongo import MongoClient
 from fastembed import TextEmbedding
+from skillextractor import extract_and_compare_skills, get_skill_recommendations
 
 load_dotenv()
 
@@ -19,6 +21,7 @@ mongo_client = MongoClient(MONGO_URL)
 db = mongo_client[DB_NAME]
 
 embedder = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
+logger = logging.getLogger(__name__)
 
 # ---------------- HELPERS ----------------
 
@@ -233,6 +236,39 @@ def analyze_profile(user_id: str, job_role: str = ""):
     
     confidence_score = calculate_confidence_score(user_id, scores)
 
+    # ---------------- SKILL GAP ANALYSIS ----------------
+    
+    skill_gaps = None
+    skill_recommendations = []
+    
+    try:
+        # Get user's resume skills
+        user_resume = db.resumeparseddatas.find_one({"userId": ObjectId(user_id)})
+        user_skills = user_resume.get('skills', []) if user_resume else []
+        
+        # Perform skill comparison if job role/description provided
+        if job_role and str(job_role).strip():
+            logger.debug("Running skill gap analysis for input length: %s", len(str(job_role)))
+            
+            # Extract and compare skills
+            skill_gaps = extract_and_compare_skills(job_role, user_skills)
+            
+            # Get recommendations
+            skill_recommendations = get_skill_recommendations(skill_gaps)
+            logger.debug(
+                "Skill gap analysis complete: required=%s, matched=%s, missing=%s, match=%s%%",
+                skill_gaps.get("required_count", 0),
+                skill_gaps.get("matched_count", 0),
+                skill_gaps.get("missing_count", 0),
+                skill_gaps.get("match_percentage", 0),
+            )
+        else:
+            logger.debug("Skill gap analysis skipped: no job description provided")
+    
+    except Exception as e:
+        logger.exception("Skill gap analysis failed")
+        skill_gaps = None
+
     # ---------------- SAVE TO MONGO ----------------
 
     db.finalresults.update_one(
@@ -242,6 +278,8 @@ def analyze_profile(user_id: str, job_role: str = ""):
                 "scores": scores,
                 "finalScore": final_score,
                 "confidenceScore": confidence_score,
+                "skillGaps": skill_gaps,
+                "skillRecommendations": skill_recommendations,
                 "updatedAt": datetime.utcnow()
             }
         },
@@ -255,6 +293,8 @@ def analyze_profile(user_id: str, job_role: str = ""):
             "scores": scores,
             "finalScore": final_score,
             "confidenceScore": confidence_score,
+            "skillGaps": skill_gaps,
+            "skillRecommendations": skill_recommendations,
             "createdAt": datetime.utcnow(),
             "updatedAt": datetime.utcnow(),
         }
@@ -264,5 +304,7 @@ def analyze_profile(user_id: str, job_role: str = ""):
         "success": True,
         "scores": scores,
         "finalScore": final_score,
-        "confidenceScore": confidence_score
+        "confidenceScore": confidence_score,
+        "skillGaps": skill_gaps,
+        "skillRecommendations": skill_recommendations
     }
