@@ -89,7 +89,7 @@ async function uploader(req, res, next) {
       let parsed;
       try {
         parsed = await parser(filePath);
-        console.log("Parsed result:", parsed);
+        // console.log("Parsed result:", parsed); // Removed - too verbose
       } catch (parseError) {
         console.error("Resume parsing failed:", parseError.message);
         return res.status(500).json({
