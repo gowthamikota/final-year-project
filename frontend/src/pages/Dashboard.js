@@ -108,11 +108,13 @@ function Dashboard() {
   const hydrateDashboardFromApi = useCallback((apiResult) => {
     if (!apiResult?.data) return;
 
-    const { finalScore = 0, scores = {}, confidenceScore = 0, updatedAt } = apiResult.data;
+    const { finalScore = 0, scores = {}, confidenceScore = 0, updatedAt, skillGaps, skillRecommendations } = apiResult.data;
     
     // DEBUG: Log actual scores received from API
     console.log("🔍 API Scores Received:", scores);
     console.log("🔍 Final Score:", finalScore);
+    console.log("🔍 Skill Gaps from API:", skillGaps);
+    console.log("🔍 Skill Recommendations:", skillRecommendations);
     
     const normalizedScores = {
       resume: Number(scores.resume || 0),
@@ -130,9 +132,25 @@ function Dashboard() {
       : 0;
 
     const recentAnalyses = buildRecentAnalyses(apiResult.history, finalScore, updatedAt);
-    const skillGaps = buildSkillGaps(normalizedScores);
     
-    console.log("🔍 Skill Gaps Generated:", skillGaps);
+    // Use role-specific skill gaps if available, otherwise use platform-based gaps
+    let skillGapsToDisplay = buildSkillGaps(normalizedScores);
+    
+    if (skillGaps && skillGaps.missing && skillGaps.missing.length > 0) {
+      // Convert API skill gaps to display format
+      skillGapsToDisplay = [
+        ...skillGaps.missing.slice(0, 5).map(skill => ({
+          skill: skill.charAt(0).toUpperCase() + skill.slice(1), // Capitalize
+          priority: skillGaps.match_percentage < 50 ? "High" : skillGaps.match_percentage < 75 ? "Medium" : "Low",
+          currentScore: 0,
+          isRoleSpecific: true
+        })),
+        // Add platform gaps for context
+        ...buildSkillGaps(normalizedScores).slice(0, 2)
+      ];
+    }
+    
+    console.log("🔍 Skill Gaps to Display:", skillGapsToDisplay);
 
     setProfileScores(normalizedScores);
     setDashboardData({
@@ -145,7 +163,7 @@ function Dashboard() {
         profileViews: 0,
       },
       recentAnalyses,
-      skillGaps,
+      skillGaps: skillGapsToDisplay,
     });
     
     console.log("🎯 Confidence Score Set:", confidenceScore);
@@ -256,7 +274,11 @@ function Dashboard() {
                 headers: {
                   'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ userId: user._id, jobRole: analysisForm.jobRole }),
+                body: JSON.stringify({ 
+                  userId: user._id, 
+                  jobRole: analysisForm.jobRole,
+                  jobDescription: analysisForm.jobDescription 
+                }),
               });
               
               if (analysisResponse.ok) {
@@ -339,6 +361,8 @@ function Dashboard() {
           finalScore: result.data.finalScore,
           scores: result.data.scores,
           confidenceScore: result.data.confidenceScore || 0,
+          skillGaps: result.data.skillGaps || null,
+          skillRecommendations: result.data.skillRecommendations || [],
           suggestions: result.suggestions || 'Suggestions unavailable. Configure GEMINI_API_KEY.',
         });
         
@@ -597,48 +621,87 @@ function Dashboard() {
               </div>
             </div>
 
-            {/* Skill Gap Analysis */}
+            {/* Skill Gap Analysis - IMPROVED */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100">
               <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-bold text-gray-900">Skill Gap Analysis</h2>
-                <p className="text-gray-600 mt-1">Skills to improve for better matches</p>
+                <h2 className="text-xl font-bold text-gray-900">🎯 Skill Gap Analysis</h2>
+                <p className="text-gray-600 mt-1">See how your skills match the role</p>
               </div>
-              <div className="p-6">
-                {dashboardData.skillGaps.length > 0 ? (
+              <div className="p-6 space-y-4">
+                {dashboardData.skillGaps && dashboardData.skillGaps.length > 0 ? (
                   <>
-                    <div className="space-y-6">
-                      {dashboardData.skillGaps.map((skill, index) => (
-                        <div key={index} className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <span className="font-semibold text-gray-900">{skill.skill}</span>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                skill.priority === 'High' ? 'bg-red-100 text-red-800' :
-                                skill.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-green-100 text-green-800'
-                              }`}>
-                                {skill.priority} Priority
-                              </span>
-                            </div>
-                            <span className="text-sm font-semibold text-gray-700">{skill.currentScore}%</span>
-                          </div>
-                          <ProgressBar 
-                            percentage={skill.currentScore} 
-                            color={skill.currentScore >= 60 ? 'yellow' : skill.currentScore >= 40 ? 'red' : 'red'}
-                          />
-                          <p className="text-xs text-gray-500">Target: 70% | Gap: {70 - skill.currentScore}%</p>
+                    {/* Show platform-based gaps if no role-specific analysis */}
+                    {dashboardData.skillGaps.some(s => !s.isRoleSpecific) && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <span>📊</span> Platform Performance Gaps
+                        </h3>
+                        <div className="space-y-3">
+                          {dashboardData.skillGaps
+                            .filter(s => !s.isRoleSpecific)
+                            .slice(0, 3)
+                            .map((skill, index) => (
+                              <div key={`platform-${index}`} className="p-4 rounded-lg bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="font-medium text-gray-900">{skill.skill}</span>
+                                  <span className="text-sm font-bold text-red-600">{skill.currentScore}%</span>
+                                </div>
+                                <div className="w-full bg-gray-300 rounded-full h-2">
+                                  <div 
+                                    className="bg-gradient-to-r from-orange-500 to-red-500 h-2 rounded-full transition-all"
+                                    style={{ width: `${skill.currentScore}%` }}
+                                  ></div>
+                                </div>
+                                <p className="text-xs text-gray-600 mt-2">Target: 70% • Gap: {70 - skill.currentScore}%</p>
+                              </div>
+                            ))}
                         </div>
-                      ))}
-                    </div>
-                    <button className="w-full mt-6 py-3 text-blue-600 hover:bg-blue-50 rounded-xl font-medium transition-colors duration-200">
-                      Explore Learning Resources →
+                      </div>
+                    )}
+
+                    {/* Show role-specific gaps if available */}
+                    {dashboardData.skillGaps.some(s => s.isRoleSpecific) && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <span>🎓</span> For Your Target Role
+                        </h3>
+                        <div className="space-y-3">
+                          {dashboardData.skillGaps
+                            .filter(s => s.isRoleSpecific)
+                            .slice(0, 4)
+                            .map((skill, index) => (
+                              <div key={`role-${index}`} className="p-3 rounded-lg bg-red-50 border border-red-200">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg">❌</span>
+                                  <span className="font-medium text-gray-900">{skill.skill}</span>
+                                  <span className="ml-auto text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full font-medium">Learn this</span>
+                                </div>
+                              </div>
+                            ))}
+                          {dashboardData.skillGaps.filter(s => s.isRoleSpecific).length > 4 && (
+                            <button 
+                              onClick={() => setShowDetailedAnalysis(true)}
+                              className="w-full p-3 text-blue-600 font-medium hover:bg-blue-50 rounded-lg transition-colors"
+                            >
+                              View all {dashboardData.skillGaps.filter(s => s.isRoleSpecific).length} skills needed →
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <button 
+                      onClick={() => setShowDetailedAnalysis(true)}
+                      className="w-full mt-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-medium hover:from-blue-700 hover:to-blue-800 transition-all"
+                    >
+                      View Detailed Analysis & Learning Path →
                     </button>
                   </>
                 ) : (
                   <div className="text-center py-8">
                     <div className="text-4xl mb-3">🎉</div>
-                    <p className="text-gray-700 font-medium">No significant gaps detected!</p>
-          
+                    <p className="text-gray-700 font-medium">No analysis yet</p>
+                    <p className="text-gray-500 text-sm mt-2">Run an analysis with a job description to see skill gaps</p>
                   </div>
                 )}
               </div>
@@ -713,18 +776,21 @@ function Dashboard() {
 
         {/* AI Recommendations Section */}
         {aiRecommendations.length > 0 && (
-          <div className="mt-8 bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-            <div className="mb-4">
-              <h2 className="text-xl font-bold text-gray-900">AI Recommendations</h2>
-              <p className="text-gray-600 mt-1">Actionable feedback to improve your resume alignment</p>
+          <div className="mt-8 bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50 rounded-2xl shadow-xl border-2 border-purple-200 p-8">
+            <div className="mb-8 flex items-start gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full flex items-center justify-center text-white text-2xl flex-shrink-0 shadow-lg">💡</div>
+              <div>
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-900 to-indigo-900 bg-clip-text text-transparent">AI Recommendations</h2>
+                <p className="text-gray-600 mt-2 text-base">Personalized insights to accelerate your growth</p>
+              </div>
             </div>
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {aiRecommendations.map((rec, idx) => (
-                <div key={idx} className="flex items-start space-x-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                  <div className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                <div key={idx} className="flex items-start space-x-4 p-6 bg-white rounded-xl border-l-4 border-purple-500 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200">
+                  <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-purple-600 to-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-none shadow-md">
                     {idx + 1}
                   </div>
-                  <p className="text-gray-800 text-sm">{rec}</p>
+                  <p className="text-gray-800 text-base leading-relaxed font-medium">{rec}</p>
                 </div>
               ))}
             </div>
@@ -1028,6 +1094,106 @@ function Dashboard() {
                   </div>
                 )}
 
+                {/* Role-Specific Skill Gaps - IMPROVED */}
+                {detailedAnalysisData.skillGaps && detailedAnalysisData.skillGaps.missing && detailedAnalysisData.skillGaps.missing.length > 0 && (
+                  <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-2 border-purple-300 rounded-xl p-8">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                      <span>🎯</span> Skills Analysis for Your Target Role
+                    </h3>
+                    
+                    {/* Match Score Card */}
+                    <div className="bg-white rounded-lg p-6 mb-6 border-2 border-purple-200 shadow-md">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-gray-600 font-medium">Your Skill Match Score</p>
+                          <p className="text-sm text-gray-500 mt-1">How well your skills align with the role</p>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-5xl font-bold text-purple-600">{detailedAnalysisData.skillGaps.match_percentage}%</div>
+                          <p className={`text-sm font-medium mt-2 ${
+                            detailedAnalysisData.skillGaps.match_percentage >= 70 ? 'text-green-600' :
+                            detailedAnalysisData.skillGaps.match_percentage >= 40 ? 'text-blue-600' :
+                            'text-red-600'
+                          }`}>
+                            {detailedAnalysisData.skillGaps.match_percentage >= 70 ? '✓ Great Match!' :
+                             detailedAnalysisData.skillGaps.match_percentage >= 40 ? '◐ Partial Match' :
+                             '✗ Needs Work'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-4 w-full bg-gray-300 rounded-full h-3">
+                        <div 
+                          className={`h-3 rounded-full transition-all ${
+                            detailedAnalysisData.skillGaps.match_percentage >= 70 ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
+                            detailedAnalysisData.skillGaps.match_percentage >= 40 ? 'bg-gradient-to-r from-blue-500 to-purple-500' :
+                            'bg-gradient-to-r from-orange-500 to-red-500'
+                          }`}
+                          style={{ width: `${detailedAnalysisData.skillGaps.match_percentage}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-3">
+                        {detailedAnalysisData.skillGaps.matched_count} matched • {detailedAnalysisData.skillGaps.missing_count} missing • {detailedAnalysisData.skillGaps.required_count} total required
+                      </p>
+                    </div>
+
+                    {/* Skills Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Matched Skills */}
+                      <div className="bg-white rounded-lg p-6 border-l-4 border-green-500">
+                        <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                          <span className="text-2xl">✅</span> Your Matching Skills ({detailedAnalysisData.skillGaps.matched_count})
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {detailedAnalysisData.skillGaps.matched.map((skill, idx) => (
+                            <span key={idx} className="px-3 py-2 bg-green-100 text-green-800 rounded-full text-sm font-semibold hover:bg-green-200 transition-colors">
+                              {skill}
+                            </span>
+                          ))}
+                          {detailedAnalysisData.skillGaps.matched.length === 0 && (
+                            <p className="text-gray-500 text-sm italic">No matches yet</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Missing Skills */}
+                      <div className="bg-white rounded-lg p-6 border-l-4 border-red-500">
+                        <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                          <span className="text-2xl">❌</span> Skills to Learn ({detailedAnalysisData.skillGaps.missing_count})
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {detailedAnalysisData.skillGaps.missing.map((skill, idx) => (
+                            <span key={idx} className="px-3 py-2 bg-red-100 text-red-800 rounded-full text-sm font-semibold hover:bg-red-200 transition-colors">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Learning Path */}
+                    {detailedAnalysisData.skillRecommendations && detailedAnalysisData.skillRecommendations.length > 0 && (
+                      <div className="bg-white rounded-lg p-6 border-2 border-orange-200 mt-6">
+                        <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                          <span>🚀</span> Recommended Learning Path
+                        </h4>
+                        <p className="text-sm text-gray-600 mb-4">Start with these skills to quickly improve your match score:</p>
+                        <ol className="space-y-3">
+                          {detailedAnalysisData.skillRecommendations.map((skill, idx) => (
+                            <li key={idx} className="flex items-center p-3 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-lg border border-orange-200 hover:shadow-md transition-all">
+                              <span className="inline-flex items-center justify-center w-8 h-8 bg-orange-500 text-white rounded-full font-bold mr-4 text-sm ">{idx + 1}</span>
+                              <span className="text-gray-800 font-semibold flex-1">{skill}</span>
+                              <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full font-medium">Priority</span>
+                            </li>
+                          ))}
+                        </ol>
+                        <p className="text-xs text-gray-600 mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          💡 Focus on these skills to quickly reach a {Math.ceil(detailedAnalysisData.skillGaps.match_percentage) + 20}% match score
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="bg-white border border-gray-200 rounded-xl p-6">
                   <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                     <span>📊</span> Profile Scores Breakdown
@@ -1079,20 +1245,104 @@ function Dashboard() {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-green-50 to-blue-50 border border-green-200 rounded-xl p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                    <span>💡</span> AI-Powered Recommendations & Improvements
-                  </h3>
-                  <div className="prose prose-sm max-w-none">
-                    <div className="whitespace-pre-wrap text-gray-700 leading-relaxed bg-white p-4 rounded-lg">
-                      {detailedAnalysisData.suggestions}
+                <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50 border-2 border-purple-300 rounded-xl p-8 shadow-xl">
+                  <div className="flex items-start gap-4 mb-8">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-full flex items-center justify-center text-white text-2xl flex-shrink-0 shadow-lg">💡</div>
+                    <div>
+                      <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-900 to-indigo-900 bg-clip-text text-transparent">AI-Powered Recommendations</h3>
+                      <p className="text-gray-600 mt-2">Strategic insights to optimize your career growth</p>
                     </div>
                   </div>
+
+                  {detailedAnalysisData.suggestions ? (
+                    <div className="bg-white rounded-lg p-8 space-y-6">
+                      {/* Clean and format suggestions, removing markdown ** */}
+                      {detailedAnalysisData.suggestions.split('\n\n').map((section, idx) => {
+                        const cleanedSection = section.replace(/\*\*/g, ''); // Remove ** markdown
+                        const isHeading = cleanedSection.includes(':');
+                        
+                        if (isHeading) {
+                          const [heading, ...content] = cleanedSection.split(':');
+                          const bodyText = content.join(':').trim();
+                          
+                          return (
+                            <div key={idx}>
+                              {idx > 0 && <div className="border-t border-gray-200 mb-6"></div>}
+                              <div className="space-y-3">
+                                <h4 className="text-lg font-bold text-purple-900 flex items-center gap-3">
+                                  <span className="w-1.5 h-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full"></span>
+                                  {heading.trim()}
+                                </h4>
+                                <p className="text-gray-700 leading-relaxed ml-6 text-base">{bodyText}</p>
+                              </div>
+                            </div>
+                          );
+                        } else if (cleanedSection.trim()) {
+                          return (
+                            <div key={idx} className="text-gray-700 leading-relaxed text-base">
+                              {cleanedSection.trim()}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })}
+
+                      {/* Quick tips callout */}
+                      <div className="border-t border-gray-200 pt-6 mt-6">
+                        <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-lg p-6 text-white shadow-lg">
+                          <p className="font-bold mb-4 text-base flex items-center gap-2">🎯 Quick Action Items</p>
+                          <ul className="text-sm space-y-2 ml-4 list-disc">
+                            <li className="text-purple-50">Focus on the top 3 missing skills this month</li>
+                            <li className="text-purple-50">Build a small project using the new technologies</li>
+                            <li className="text-purple-50">Document your learning progress on GitHub</li>
+                          </ul>
+                        </div>
+                      </div>
+
+                      {/* Your Action Plan - Now integrated */}
+                      <div className="border-t border-gray-200 pt-6 mt-6">
+                        <h4 className="text-lg font-bold text-purple-900 flex items-center gap-3 mb-4">
+                          <span>🚀</span> Your Action Plan
+                        </h4>
+                        <div className="grid md:grid-cols-3 gap-4">
+                          <div className="bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg p-4 border border-purple-200">
+                            <p className="text-sm font-bold text-purple-900 mb-2">WEEK 1</p>
+                            <p className="text-gray-800 text-sm leading-relaxed">
+                              {detailedAnalysisData.skillRecommendations && detailedAnalysisData.skillRecommendations.length > 0
+                                ? `Master: ${detailedAnalysisData.skillRecommendations[0] || 'a new skill'}`
+                                : 'Start with fundamentals'}
+                            </p>
+                          </div>
+                          <div className="bg-gradient-to-br from-indigo-100 to-blue-100 rounded-lg p-4 border border-indigo-200">
+                            <p className="text-sm font-bold text-indigo-900 mb-2">WEEK 2-4</p>
+                            <p className="text-gray-800 text-sm leading-relaxed">
+                              Build a real project using your new skills
+                            </p>
+                          </div>
+                          <div className="bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg p-4 border border-blue-200">
+                            <p className="text-sm font-bold text-blue-900 mb-2">MONTH 2+</p>
+                            <p className="text-gray-800 text-sm leading-relaxed">
+                              Reach {Math.ceil(detailedAnalysisData.skillGaps?.match_percentage || 0) + 25}% match score by learning missing skills
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-sm mt-4 text-gray-700 italic pl-4 border-l-2 border-purple-300">
+                          💡 Remember: Consistency beats intensity. Focus on one skill at a time and build projects to reinforce learning.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-white rounded-lg">
+                      <div className="text-6xl mb-4">🤔</div>
+                      <p className="text-gray-700 font-semibold text-lg">Run an analysis to get personalized recommendations</p>
+                      <p className="text-gray-600 mt-2">Provide a detailed job description for AI-powered insights</p>
+                    </div>
+                  )}
                 </div>
 
                 <button
                   onClick={() => setShowDetailedAnalysis(false)}
-                  className="w-full py-3 bg-blue-600 text-white hover:bg-blue-700 rounded-xl font-medium transition-colors duration-200"
+                  className="w-full mt-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 rounded-xl font-semibold transition-all shadow-lg"
                 >
                   Close
                 </button>
