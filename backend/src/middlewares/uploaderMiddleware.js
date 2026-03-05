@@ -1,6 +1,7 @@
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 const { parser } = require("../services/parser");
 const resumeParsedDataModel = require("../models/resumeParsedData");
 
@@ -21,6 +22,12 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage }).single("resume");
+
+// Calculate MD5 hash of a file
+function calculateFileHash(filePath) {
+  const fileBuffer = fs.readFileSync(filePath);
+  return crypto.createHash('md5').update(fileBuffer).digest('hex');
+}
 
 async function uploader(req, res, next) {
   upload(req, res, async (err) => {
@@ -44,7 +51,16 @@ async function uploader(req, res, next) {
         });
       }
 
+      // If no file, check if this is a profile-only scraping request (has profileUrls)
       if (!filePath) {
+        // Check if request has profileUrls (meaning it's a reuse-resume case)
+        const hasProfileUrls = req.body?.profileUrls;
+        if (hasProfileUrls) {
+          // Allow it to pass through to route handler (will fetch existing resume from DB)
+          req.noNewFile = true;
+          return next();
+        }
+        // No file and no profileUrls - this is an error
         return res.status(400).json({
           success: false,
           error: "No file uploaded",
@@ -53,6 +69,23 @@ async function uploader(req, res, next) {
 
       console.log("Sending file to Python parser:", filePath);
 
+      // Calculate hash of uploaded file
+      const fileHash = calculateFileHash(filePath);
+      console.log("📄 File hash:", fileHash);
+
+      // Check if we have an existing resume with the same hash
+      const existingResume = await resumeParsedDataModel
+        .findOne({ userId })
+        .sort({ createdAt: -1 });
+
+      if (existingResume && existingResume.fileHash === fileHash) {
+        console.log("✅ SAME RESUME DETECTED - Reusing from database (NO PARSING)");
+        req.parsedResume = existingResume;
+        req.resumeReuseReason = "identical_hash";
+        return next();
+      }
+
+      console.log("📝 NEW RESUME DETECTED - Parsing...");
       let parsed;
       try {
         parsed = await parser(filePath);
@@ -82,6 +115,7 @@ async function uploader(req, res, next) {
         userId,
         ...parsed,
         filePath,
+        fileHash,
       });
 
       req.parsedResume = savedResume;
