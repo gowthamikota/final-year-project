@@ -19,7 +19,6 @@ const analysisHistorySchema = new mongoose.Schema(
       codeforces: { type: Number, default: 0 },
       codechef: { type: Number, default: 0 },
       resume: { type: Number, default: 0 },
-      activity: { type: Number, default: 0 },
     },
     finalScore: {
       type: Number,
