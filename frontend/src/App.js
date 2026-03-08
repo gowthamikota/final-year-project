@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import ForgotPassword from './pages/ForgotPassword';
 import CompatibilityDashboard from "./pages/CompatibilityDashboard";
+import AnalysisHistory from "./pages/AnalysisHistory";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/compatibility" element={<CompatibilityDashboard />} />
+          <Route path="/analysis-history" element={<AnalysisHistory />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
         </Routes>
