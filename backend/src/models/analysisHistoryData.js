@@ -13,12 +13,30 @@ const analysisHistorySchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
+    role: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    jobDescription: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     scores: {
       github: { type: Number, default: 0 },
       leetcode: { type: Number, default: 0 },
       codeforces: { type: Number, default: 0 },
       codechef: { type: Number, default: 0 },
       resume: { type: Number, default: 0 },
+    },
+    skillGaps: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    skillRecommendations: {
+      type: [String],
+      default: [],
     },
     finalScore: {
       type: Number,
@@ -34,5 +52,9 @@ const analysisHistorySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+analysisHistorySchema.index({ userId: 1, createdAt: -1 });
+analysisHistorySchema.index({ userId: 1, jobRole: 1, createdAt: -1 });
+analysisHistorySchema.index({ userId: 1, role: 1, createdAt: -1 });
 
 module.exports = mongoose.model("analysishistories", analysisHistorySchema);
