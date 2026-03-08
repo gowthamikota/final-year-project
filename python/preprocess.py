@@ -191,27 +191,6 @@ def preprocess_user(user_id: str):
         "resume": build_resume_text(resume)
     }
 
-    # Generate dynamic activity description based on actual metrics
-    activity_parts = []
-    
-    if g.get('followers', 0) > 0:
-        activity_parts.append(f"GitHub contributor with {g.get('followers', 0)} followers and {g.get('totalCommits', 0)} commits")
-    
-    if lc.get('totalSolved', 0) > 0:
-        activity_parts.append(f"LeetCode problem solver: {lc.get('totalSolved', 0)} problems solved")
-    
-    if cf.get('rating', 0) > 0:
-        activity_parts.append(f"Codeforces competitive programmer with {cf.get('rating', 0)} rating")
-    
-    if cc.get('rating', 0) > 0:
-        activity_parts.append(f"CodeChef competitor with {cc.get('rating', 0)} rating")
-    
-    if len(resume.get('skills', [])) > 0:
-        activity_parts.append(f"Software engineer with {len(resume.get('skills', []))} technical skills")
-    
-    activity_desc = " | ".join(activity_parts) if activity_parts else "Software developer with coding experience"
-    blocks['activity'] = activity_desc
-
     # FILTER: Only embed platforms with actual data
     print("🔄 EMBEDDING GENERATION")
     print("-" * 70)
@@ -232,9 +211,6 @@ def preprocess_user(user_id: str):
     
     if blocks['resume']:
         platforms_to_embed['resume'] = blocks['resume']
-    
-    # Always include activity
-    platforms_to_embed['activity'] = blocks['activity']
     
     for platform, text in platforms_to_embed.items():
         preview = text[:80].replace('\n', ' ') + "..." if len(text) > 80 else text
