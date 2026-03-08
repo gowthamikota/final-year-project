@@ -1,29 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
-const sampleJobs = [
-  {
-    id: "frontend-dev",
-    title: "Frontend Developer",
-    company: "Tech Corp",
-    requiredSkills: ["React", "JavaScript", "TypeScript", "CSS", "REST"],
-  },
-  {
-    id: "fullstack",
-    title: "Full Stack Engineer",
-    company: "Startup Inc",
-    requiredSkills: ["Node.js", "React", "MongoDB", "Docker", "CI/CD"],
-  },
-];
-
-const sampleResume = {
-  skills: ["React", "JavaScript", "CSS", "Node.js", "MongoDB", "Git"],
-  education: "B.Tech in Computer Science (2025)",
-  experience: [
-    "Frontend Intern – dashboards with React/Tailwind",
-    "Backend Intern – REST APIs with Express/MongoDB",
-  ],
-};
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
 const Gauge = ({ score }) => (
   <div className="relative h-40 w-40 flex items-center justify-center">
@@ -36,7 +14,7 @@ const Gauge = ({ score }) => (
         stroke="#2563eb"
         strokeWidth="10"
         fill="none"
-        strokeDasharray={`${score * 2.83} 283`}
+        strokeDasharray={`${Math.max(0, Math.min(100, score)) * 2.83} 283`}
         strokeLinecap="round"
       />
     </svg>
@@ -47,96 +25,218 @@ const Gauge = ({ score }) => (
   </div>
 );
 
+const getConfidenceMeta = (score) => {
+  if (score >= 70) return { label: "High", style: "bg-green-100 text-green-700" };
+  if (score >= 40) return { label: "Medium", style: "bg-yellow-100 text-yellow-700" };
+  return { label: "Low", style: "bg-orange-100 text-orange-700" };
+};
+
+const parseSuggestions = (text) => {
+  if (!text) return [];
+  const lines = text
+    .split("\n")
+    .map((line) => line.replace(/^[-*\d).\s]+/, "").trim())
+    .filter(Boolean);
+  return lines.slice(0, 6);
+};
+
 function CompatibilityDashboard() {
   const { user } = useAuth();
-  const [selectedJob, setSelectedJob] = useState(sampleJobs[0]);
+  const [jobRole, setJobRole] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
+  const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
+  const [isLoadingLatest, setIsLoadingLatest] = useState(true);
+  const [error, setError] = useState("");
+  const [analysisData, setAnalysisData] = useState(null);
+  const [recommendations, setRecommendations] = useState([]);
+
+  const fetchLatestAnalysis = useCallback(async (role = "") => {
+    if (!user?._id) return;
+
+    try {
+      const query = role ? `?jobRole=${encodeURIComponent(role)}` : "";
+      const response = await fetch(`${API_URL}/analysis/${user._id}${query}`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          setAnalysisData(null);
+          setRecommendations([]);
+          return;
+        }
+        throw new Error("Unable to fetch latest analysis");
+      }
+
+      const result = await response.json();
+      if (result.success && result.data) {
+        setAnalysisData(result.data);
+        setRecommendations(parseSuggestions(result.suggestions));
+      }
+    } catch (fetchError) {
+      setError(fetchError.message || "Failed to load analysis");
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const load = async () => {
+      setIsLoadingLatest(true);
+      await fetchLatestAnalysis();
+      setIsLoadingLatest(false);
+    };
+    load();
+  }, [fetchLatestAnalysis]);
+
+  const runAnalysis = async (event) => {
+    event.preventDefault();
+
+    if (!jobRole.trim() && !jobDescription.trim()) {
+      setError("Enter at least a job role or a job description.");
+      return;
+    }
+
+    try {
+      setError("");
+      setIsRunningAnalysis(true);
+
+      const response = await fetch(`${API_URL}/analysis/run`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobRole, jobDescription }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Analysis request failed");
+      }
+
+      setAnalysisData(result.data || null);
+      await fetchLatestAnalysis(jobRole);
+    } catch (runError) {
+      setError(runError.message || "Analysis failed");
+    } finally {
+      setIsRunningAnalysis(false);
+    }
+  };
 
   const insights = useMemo(() => {
-    const matched = selectedJob.requiredSkills.filter((skill) => sampleResume.skills.includes(skill));
-    const missing = selectedJob.requiredSkills.filter((skill) => !sampleResume.skills.includes(skill));
-    const additional = sampleResume.skills.filter((skill) => !selectedJob.requiredSkills.includes(skill));
-
-    const skillScore = Math.round((matched.length / selectedJob.requiredSkills.length) * 100) || 0;
-    const educationScore = 85; // placeholder
-    const experienceScore = 78; // placeholder
-    const overall = Math.round(skillScore * 0.5 + educationScore * 0.25 + experienceScore * 0.25);
+    const scores = analysisData?.scores || {};
+    const skillGaps = analysisData?.skillGaps || {};
+    const matched = Array.isArray(skillGaps.matched) ? skillGaps.matched : [];
+    const missing = Array.isArray(skillGaps.missing) ? skillGaps.missing : [];
+    const additional = Array.isArray(skillGaps.surplus) ? skillGaps.surplus : [];
 
     return {
       matched,
       missing,
       additional,
       scores: {
-        overall,
-        skills: skillScore,
-        education: educationScore,
-        experience: experienceScore,
+        overall: Math.round(Number(analysisData?.finalScore || 0)),
+        github: Math.round(Number(scores.github || 0)),
+        leetcode: Math.round(Number(scores.leetcode || 0)),
+        resume: Math.round(Number(scores.resume || 0)),
       },
-      recommendations: [
-        missing.length > 0
-          ? `Highlight or add: ${missing.join(", ")}`
-          : "Great skill alignment. Emphasize key wins in bullet points.",
-        "Tailor your summary to mirror the job title and company context.",
-        "Quantify impact in experience bullets (metrics, outcomes).",
-      ],
+      confidenceScore: Number(analysisData?.confidenceScore || 0),
+      role: analysisData?.role || "unknown",
     };
-  }, [selectedJob]);
+  }, [analysisData]);
 
   const displayName = user?.firstName && user?.lastName
     ? `${user.firstName} ${user.lastName}`
     : user?.email || "Student";
 
+  const confidence = getConfidenceMeta(insights.confidenceScore);
+
+  if (isLoadingLatest) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-10 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading compatibility data...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
         <header className="bg-white/80 backdrop-blur-sm border border-gray-100 rounded-2xl shadow-md p-6 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-6">
             <div>
               <p className="text-sm text-blue-600 font-semibold uppercase">AI Insights</p>
-              <h1 className="text-3xl font-bold text-gray-900">Resume–Job Compatibility</h1>
-              <p className="text-gray-600">Hello {displayName}, here are AI-driven comparisons between your resume and the selected job.</p>
+              <h1 className="text-3xl font-bold text-gray-900">Resume-Job Compatibility</h1>
+              <p className="text-gray-600">Hello {displayName}, run analysis with a role and job description to get live compatibility scores.</p>
             </div>
-            <div>
-              <label className="text-sm text-gray-600">Select Job</label>
-              <select
-                className="ml-2 border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                value={selectedJob.id}
-                onChange={(e) => setSelectedJob(sampleJobs.find((job) => job.id === e.target.value) || sampleJobs[0])}
-              >
-                {sampleJobs.map((job) => (
-                  <option key={job.id} value={job.id}>
-                    {job.title} · {job.company}
-                  </option>
-                ))}
-              </select>
-            </div>
+
+            <form onSubmit={runAnalysis} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Target Job Role</label>
+                <input
+                  type="text"
+                  value={jobRole}
+                  onChange={(e) => setJobRole(e.target.value)}
+                  placeholder="Example: Frontend Developer"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm text-gray-600 mb-1">Job Description</label>
+                <textarea
+                  rows={4}
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  placeholder="Paste the full JD for better matching"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="md:col-span-2 flex items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={isRunningAnalysis}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {isRunningAnalysis ? "Running Analysis..." : "Run Compatibility Analysis"}
+                </button>
+                {error && <p className="text-sm text-red-600">{error}</p>}
+              </div>
+            </form>
           </div>
         </header>
 
+        {!analysisData && (
+          <section className="bg-white border border-gray-100 rounded-2xl shadow-md p-6 text-center">
+            <p className="text-gray-700 font-semibold">No analysis available yet</p>
+            <p className="text-gray-500 text-sm mt-1">Run analysis above to view your real score breakdown.</p>
+          </section>
+        )}
+
+        {analysisData && (
+          <>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <section className="bg-white border border-gray-100 rounded-2xl shadow-md p-6 flex flex-col items-center justify-center">
             <Gauge score={insights.scores.overall} />
             <div className="mt-4 text-center">
               <p className="text-lg font-semibold text-gray-900">Overall Compatibility</p>
-              <p className="text-sm text-gray-600">Aggregated from skills, education, and experience.</p>
+              <p className="text-sm text-gray-600">Detected role: {insights.role.toUpperCase()}</p>
             </div>
           </section>
 
           <section className="bg-white border border-gray-100 rounded-2xl shadow-md p-6 lg:col-span-2 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-blue-600 font-semibold uppercase">Job Details</p>
-                <h2 className="text-xl font-bold text-gray-900">{selectedJob.title}</h2>
-                <p className="text-gray-600">{selectedJob.company}</p>
+                <p className="text-sm text-blue-600 font-semibold uppercase">Confidence</p>
+                <h2 className="text-xl font-bold text-gray-900">{insights.confidenceScore.toFixed(1)}%</h2>
+                <p className="text-gray-600">Reliability of current evaluation data</p>
               </div>
-              <div className="text-right text-sm text-gray-500">
-                Required skills: {selectedJob.requiredSkills.length}
-              </div>
+              <span className={`text-sm font-semibold px-3 py-1 rounded-full ${confidence.style}`}>{confidence.label}</span>
             </div>
 
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-gray-800">Required Skills</p>
+              <p className="text-sm font-semibold text-gray-800">Matched Skills</p>
               <div className="flex flex-wrap gap-2">
-                {selectedJob.requiredSkills.map((skill) => (
+                {(insights.matched.length ? insights.matched : ["No matched skills yet"]).map((skill) => (
                   <span key={skill} className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm border border-blue-100">
                     {skill}
                   </span>
@@ -158,7 +258,7 @@ function CompatibilityDashboard() {
                 </ul>
               </div>
               <div className="border border-gray-100 rounded-xl p-4 bg-purple-50/60">
-                <p className="text-sm font-semibold text-purple-700">Additional Skills (Resume)</p>
+                <p className="text-sm font-semibold text-purple-700">Additional Skills</p>
                 <ul className="mt-2 space-y-1 text-sm text-gray-800 list-disc list-inside">
                   {insights.additional.length ? insights.additional.map((skill) => <li key={skill}>{skill}</li>) : <li>None</li>}
                 </ul>
@@ -178,9 +278,9 @@ function CompatibilityDashboard() {
 
             <div className="space-y-4">
               {[
-                { label: "Skills", value: insights.scores.skills, color: "bg-blue-600" },
-                { label: "Education", value: insights.scores.education, color: "bg-emerald-600" },
-                { label: "Experience", value: insights.scores.experience, color: "bg-indigo-600" },
+                { label: "GitHub", value: insights.scores.github, color: "bg-blue-600" },
+                { label: "LeetCode", value: insights.scores.leetcode, color: "bg-emerald-600" },
+                { label: "Resume", value: insights.scores.resume, color: "bg-indigo-600" },
               ].map((item) => (
                 <div key={item.label}>
                   <div className="flex justify-between text-sm text-gray-700 mb-1">
@@ -205,14 +305,21 @@ function CompatibilityDashboard() {
             </div>
 
             <div className="space-y-3">
-              {insights.recommendations.map((rec, idx) => (
+              {(recommendations.length ? recommendations : (analysisData.skillRecommendations || [])).slice(0, 6).map((rec, idx) => (
                 <div key={idx} className="border border-gray-100 rounded-xl p-4 bg-blue-50/60 text-sm text-gray-800">
                   {rec}
                 </div>
               ))}
+              {!recommendations.length && !(analysisData.skillRecommendations || []).length && (
+                <div className="border border-gray-100 rounded-xl p-4 bg-gray-50 text-sm text-gray-600">
+                  Run analysis with a detailed job description to get stronger recommendations.
+                </div>
+              )}
             </div>
           </section>
         </div>
+          </>
+        )}
       </div>
     </div>
   );
