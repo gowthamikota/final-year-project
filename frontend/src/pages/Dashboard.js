@@ -487,7 +487,7 @@ function Dashboard() {
             ></div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            {score >= 70 ? 'Multiple platforms with strong activity data' : 
+            {score >= 70 ? 'Multiple platforms with strong data coverage' : 
              score >= 40 ? 'Some platforms connected. Add more for better accuracy' : 
              'Connect more platforms to improve reliability'}
           </p>
@@ -598,23 +598,23 @@ function Dashboard() {
                         </div>
                       ))}
                     </div>
-                    <button 
-                      onClick={handleOpenAnalysisModal}
-                      className="w-full mt-6 py-3 text-blue-600 hover:bg-blue-50 rounded-xl font-medium transition-colors duration-200"
+                    <button
+                      onClick={() => navigate('/analysis-history')}
+                      className="w-full mt-6 py-3 text-slate-700 hover:bg-slate-50 rounded-xl font-medium transition-colors duration-200"
                     >
-                      Run New Analysis →
+                      View Full History →
                     </button>
                   </>
                 ) : (
                   <div className="text-center py-12">
                     <div className="text-5xl mb-4">📊</div>
                     <p className="text-gray-700 font-medium mb-2">No analyses yet</p>
-                    <p className="text-gray-500 text-sm mb-6">Run your first profile analysis to see results here</p>
-                    <button 
-                      onClick={handleOpenAnalysisModal}
-                      className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors inline-flex items-center gap-2"
+                    <p className="text-gray-500 text-sm mb-6">Use the Compatibility Dashboard to run your first analysis</p>
+                    <button
+                      onClick={() => navigate('/analysis-history')}
+                      className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-medium transition-colors inline-flex items-center gap-2"
                     >
-                      <span>+</span> Start Analysis
+                      View Analysis History
                     </button>
                   </div>
                 )}
@@ -1077,7 +1077,7 @@ function Dashboard() {
                            'Low Reliability - Limited data available'}
                         </p>
                         <p className="text-sm text-gray-600">
-                          This score indicates how reliable the overall evaluation is based on the number of connected platforms and activity level. 
+                          This score indicates how reliable the overall evaluation is based on the number and quality of connected platforms. 
                           {detailedAnalysisData.confidenceScore < 70 && ' Consider connecting more platforms for better accuracy.'}
                         </p>
                       </div>
