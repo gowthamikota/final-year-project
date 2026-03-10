@@ -179,7 +179,7 @@ cd backend
 # Create .env file
 cat > .env << EOF
 PORT=5000
-MONGO_URI=mongodb://localhost:27017/devprofile
+MONGO_URI= mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/profile_analyzer
 JWT_SECRET=your_jwt_secret_key_here
 CLIENT_URL=http://localhost:3000
 GROQ_API_KEY=your_groq_api_key
@@ -221,7 +221,7 @@ pip install -r requirements.txt
 
 # Configure environment
 cat > .env << EOF
-MONGO_URI=mongodb://localhost:27017/devprofile
+MONGO_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/profile_analyzer
 EOF
 ```
 
