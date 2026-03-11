@@ -6,6 +6,7 @@ const userModel = require("../models/user.js");
 const bcrypt = require("bcrypt");
 const { validate, schemas } = require("../utils/validator.js");
 const logger = require("../utils/logger");
+const { sendSuccess, sendError } = require("../utils/response.js");
 
 authRouter.post("/signup", validate(schemas.signup), async (req, res) => {
   try {
@@ -24,10 +25,10 @@ authRouter.post("/signup", validate(schemas.signup), async (req, res) => {
       password, // Pass plain password, let pre-save hook hash it
     });
     await user.save();
-    return res.status(200).json({ success: true, message: "User Created Successfully", user });
+    return sendSuccess(res, { user }, "User Created Successfully");
   } catch (err) {
     logger.error("Signup error", { message: err.message });
-    return res.status(500).json({ success: false, error: err.message });
+    return sendError(res, err.message, 500);
   }
 });
 
@@ -41,19 +42,13 @@ authRouter.post("/login", validate(schemas.login), async (req, res) => {
       .select("+password");
 
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: "Invalid email or password",
-      });
+      return sendError(res, "Invalid email or password", 401);
     }
 
     const isPasswordValid = await user.validatePassword(password);
 
     if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        error: "Invalid email or password",
-      });
+      return sendError(res, "Invalid email or password", 401);
     }
 
     const token = user.getJWT();
@@ -66,18 +61,18 @@ authRouter.post("/login", validate(schemas.login), async (req, res) => {
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
 
-    res.status(200).json({
-      success: true,
-      user, // password will NOT be included because of toJSON transform
-      token,
-    });
+    return sendSuccess(
+      res,
+      {
+        user,
+        token,
+      },
+      "Login successful"
+    );
 
   } catch (err) {
     logger.error("Login error", { message: err.message });
-    res.status(500).json({
-      success: false,
-      error: "Server error",
-    });
+    return sendError(res, "Server error", 500);
   }
 });
 
@@ -90,9 +85,9 @@ authRouter.post("/logout", async (req, res) => {
       sameSite: isProduction ? "None" : "Lax",
       expires: new Date(Date.now()),
     });
-    res.status(200).json({ success: true, message: "Logout Successfully" });
+    return sendSuccess(res, null, "Logout Successfully");
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    return sendError(res, err.message, 500);
   }
 });
 module.exports = authRouter;
