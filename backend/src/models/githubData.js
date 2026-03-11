@@ -37,5 +37,8 @@ const gitHubDataSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+gitHubDataSchema.index({ userId: 1 });
+gitHubDataSchema.index({ updatedAt: -1 });
+
 const githubModel = mongoose.model("GithubProfile", gitHubDataSchema);
 module.exports = githubModel;
