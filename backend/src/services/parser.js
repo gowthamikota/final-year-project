@@ -1,4 +1,5 @@
 const axios = require("axios");
+const logger = require("../utils/logger");
 
 const PYTHON_SERVICE_URL =
   process.env.PYTHON_SERVICE_URL || "http://localhost:8000";
@@ -25,10 +26,9 @@ async function parser(filePath) {
     return response.data.data;
 
   } catch (err) {
-    console.error(
-      "Resume parsing error:",
-      err.response?.data || err.message
-    );
+    logger.error("Resume parsing error", {
+      message: err.response?.data || err.message,
+    });
 
     throw new Error(
       "Resume parsing service unavailable. Ensure Python microservice is running."
