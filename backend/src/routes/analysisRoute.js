@@ -6,6 +6,7 @@ const FinalResults = require("../models/finalResultData");
 const AnalysisHistory = require("../models/analysisHistoryData");
 const { ObjectId } = require('mongoose').Types;
 const multer = require("multer");
+const { validate, schemas } = require("../utils/validator.js");
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -104,11 +105,11 @@ analysisRouter.get("/analysis/history/:userId", async (req, res) => {
 });
 
 // ---------------- RUN ANALYSIS ----------------
-analysisRouter.post("/analysis/run", async (req, res) => {
+analysisRouter.post("/analysis/run", validate(schemas.analysisRun), async (req, res) => {
   try {
     const userId = req.user?._id?.toString();
-    const jobRole = (req.body?.jobRole || "").toString().trim();
-    const jobDescription = (req.body?.jobDescription || "").toString().trim();
+    const jobRole = (req.validatedBody?.jobRole || "").toString().trim();
+    const jobDescription = (req.validatedBody?.jobDescription || "").toString().trim();
 
     if (!userId) {
       return res.status(401).json({
