@@ -8,6 +8,7 @@ const { ObjectId } = require('mongoose').Types;
 const multer = require("multer");
 const { validate, schemas } = require("../utils/validator.js");
 const logger = require("../utils/logger");
+const { sendSuccess, sendError } = require("../utils/response.js");
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -31,14 +32,14 @@ analysisRouter.get("/analysis/history/:userId", async (req, res) => {
     } = req.query;
 
     if (!requesterId || requesterId !== userId) {
-      return res.status(403).json({ success: false, error: "Forbidden" });
+      return sendError(res, "Forbidden", 403);
     }
 
     let objectId;
     try {
       objectId = new ObjectId(userId);
     } catch (err) {
-      return res.status(400).json({ success: false, error: "Invalid userId format" });
+      return sendError(res, "Invalid userId format", 400);
     }
 
     const safePage = Math.max(1, parseInt(page, 10) || 1);
@@ -87,9 +88,7 @@ analysisRouter.get("/analysis/history/:userId", async (req, res) => {
       AnalysisHistory.countDocuments(filter),
     ]);
 
-    return res.json({
-      success: true,
-      data: rows,
+    return sendSuccess(res, rows, "Analysis history fetched", 200, {
       pagination: {
         page: safePage,
         limit: safeLimit,
@@ -101,7 +100,7 @@ analysisRouter.get("/analysis/history/:userId", async (req, res) => {
     });
   } catch (err) {
     logger.error("History fetch error", { message: err.message });
-    return res.status(500).json({ success: false, error: "Failed to fetch analysis history" });
+    return sendError(res, "Failed to fetch analysis history", 500);
   }
 });
 
@@ -113,10 +112,7 @@ analysisRouter.post("/analysis/run", validate(schemas.analysisRun), async (req, 
     const jobDescription = (req.validatedBody?.jobDescription || "").toString().trim();
 
     if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthorized user",
-      });
+      return sendError(res, "Unauthorized user", 401);
     }
 
     const response = await axios.post(
@@ -128,26 +124,17 @@ analysisRouter.post("/analysis/run", validate(schemas.analysisRun), async (req, 
     const pythonData = response.data;
 
     if (!pythonData.success) {
-      return res.status(400).json({
-        success: false,
-        error: pythonData.message,
-      });
+      return sendError(res, pythonData.message, 400);
     }
 
-    return res.json({
-      success: true,
-      message: "Profile analysis completed",
-      data: pythonData,
+    return sendSuccess(res, pythonData, "Profile analysis completed", 200, {
       explanation: pythonData.explanation || null,
     });
 
   } catch (err) {
     logger.error("Analysis error", { message: err.response?.data || err.message });
 
-    return res.status(500).json({
-      success: false,
-      error: "Analysis service failed",
-    });
+    return sendError(res, "Analysis service failed", 500);
   }
 });
 
@@ -159,10 +146,7 @@ analysisRouter.get("/analysis/:userId", async (req, res) => {
     const requesterId = req.user?._id?.toString();
 
     if (!requesterId || requesterId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: "Forbidden",
-      });
+      return sendError(res, "Forbidden", 403);
     }
 
     // Convert string userId to ObjectId for database query
@@ -171,10 +155,7 @@ analysisRouter.get("/analysis/:userId", async (req, res) => {
     try {
       objectId = new ObjectId(userId);
     } catch (err) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid userId format",
-      });
+      return sendError(res, "Invalid userId format", 400);
     }
 
     const result = await FinalResults.findOne({ userId: objectId });
@@ -190,10 +171,7 @@ analysisRouter.get("/analysis/:userId", async (req, res) => {
     });
 
     if (!result) {
-      return res.status(404).json({
-        success: false,
-        error: "No analysis found",
-      });
+      return sendError(res, "No analysis found", 404);
     }
 
     const prompt = `
@@ -237,9 +215,7 @@ Keep concise and actionable.
 
     const suggestions = completion.choices?.[0]?.message?.content || "";
 
-    return res.json({
-      success: true,
-      data: result,
+    return sendSuccess(res, result, "Analysis fetched", 200, {
       history,
       suggestions,
       explanation: result.explanation || null,
@@ -248,10 +224,7 @@ Keep concise and actionable.
   } catch (err) {
     logger.error("LLM error", { message: err.message });
 
-    return res.status(500).json({
-      success: false,
-      error: "Suggestion generation failed",
-    });
+    return sendError(res, "Suggestion generation failed", 500);
   }
 });
 
