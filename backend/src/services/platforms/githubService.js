@@ -1,4 +1,5 @@
 const axios = require("axios");
+const logger = require("../../utils/logger");
 
 async function fetchGithub(username) {
   const headers = {
@@ -22,7 +23,7 @@ async function fetchGithub(username) {
     );
 
     if (!Array.isArray(repos)) {
-      console.warn(`No repos found for user ${username}`);
+      logger.warn(`No repos found for user ${username}`);
       return {
         name: user.name || "",
         followers: user.followers || 0,
@@ -45,7 +46,7 @@ async function fetchGithub(username) {
       };
     }
 
-    console.log(`📊 Analyzing ${repos.length} repositories for ${username}...`);
+    logger.info(`Analyzing ${repos.length} repositories for ${username}...`);
 
     let totalStars = 0;
     let totalForks = 0;
@@ -92,15 +93,15 @@ async function fetchGithub(username) {
             }
           } else if (recentCommits.status === 409) {
             // 409 Conflict - likely empty repo, skip it
-            console.warn(`Empty or unavailable repo: ${repo.name} (409 Conflict)`);
+            logger.warn(`Empty or unavailable repo: ${repo.name} (409 Conflict)`);
             commitFrequencies.push(0);
           } else {
-            console.warn(`Could not fetch commits for ${repo.name}: Status ${recentCommits.status}`);
+            logger.warn(`Could not fetch commits for ${repo.name}: Status ${recentCommits.status}`);
             commitFrequencies.push(0);
           }
         } catch (err) {
           // Skip if commit fetch fails for a repo
-          console.warn(`Error fetching commits for ${repo.name}: ${err.message}`);
+          logger.warn(`Error fetching commits for ${repo.name}: ${err.message}`);
           commitFrequencies.push(0);
         }
       } else {
@@ -160,9 +161,9 @@ async function fetchGithub(username) {
       .slice(0, 3)
       .map(([lang]) => lang);
 
-    console.log(`✅ GitHub analysis complete for ${username}:`);
-    console.log(`   Total Commits: ${totalCommits}, Active Repos: ${activeRepositories}/${repos.filter(r => !r.fork).length}`);
-    console.log(`   Commit Frequency: ${commitFrequency}, Documentation Quality: ${documentationQuality.toFixed(0)}%`);
+    logger.info(`GitHub analysis complete for ${username}:`);
+    logger.info(`Total Commits: ${totalCommits}, Active Repos: ${activeRepositories}/${repos.filter(r => !r.fork).length}`);
+    logger.info(`Commit Frequency: ${commitFrequency}, Documentation Quality: ${documentationQuality.toFixed(0)}%`);
 
     return {
       name: user.name || "",
@@ -186,7 +187,7 @@ async function fetchGithub(username) {
       contributionConsistency: Math.round(contributionConsistency),
     };
   } catch (err) {
-    console.error(`❌ GitHub fetch error for ${username}:`, err.message);
+    logger.error(`GitHub fetch error for ${username}: ${err.message}`);
     throw new Error(`Failed to fetch GitHub data: ${err.message}`);
   }
 }
