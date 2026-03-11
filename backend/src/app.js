@@ -1,5 +1,6 @@
 const express = require("express");
 require("dotenv").config();
+require("./config/validate-env");
 const { connectDb } = require("./config/database");
 const { userAuth } = require("./middlewares/verifyMiddleware.js");
 const cookieParser = require("cookie-parser");
