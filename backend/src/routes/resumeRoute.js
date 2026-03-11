@@ -15,6 +15,7 @@ const { fetchGithub } = require("../services/platforms/githubService");
 const { fetchLeetcode } = require("../services/platforms/leetcodeService");
 const { fetchCodeforces } = require("../services/platforms/codeforcesService");
 const { fetchCodechef } = require("../services/platforms/codechefService");
+const logger = require("../utils/logger");
 
 // Helper: Compare two objects (exclude timestamps and _id)
 const hasDataChanged = (existing, newData) => {
@@ -114,7 +115,7 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
     }
 
     if (!userId) {
-      console.error("User not authenticated in resume/upload");
+      logger.error("User not authenticated in resume/upload");
       return res.status(401).json({ 
         success: false,
         error: "User not authenticated" 
@@ -141,9 +142,9 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
             error: "No existing resume found. Please upload your resume first."
           });
         }
-        console.log("✅ Reusing existing resume (no new file provided) - NO PARSING");
+        logger.info("Reusing existing resume (no new file provided)", { userId: String(userId) });
       } catch (err) {
-        console.error("Error fetching existing resume:", err.message);
+        logger.error("Error fetching existing resume", { message: err.message });
         return res.status(500).json({
           success: false,
           error: "Failed to retrieve existing resume"
@@ -151,7 +152,7 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
       }
     } else if (!parsedResume && hasFile) {
       // File was uploaded but not parsed
-      console.error("Resume not parsed by uploader middleware");
+      logger.error("Resume not parsed by uploader middleware");
       return res.status(400).json({
         success: false,
         error: "Resume file was not properly processed"
@@ -166,9 +167,9 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
 
     // Log the reason
     if (resumeReuseReason === "identical_hash") {
-      console.log("ℹ️ Using identical resume from profile (same file hash)");
+      logger.info("Using identical resume from profile (same file hash)", { userId: String(userId) });
     } else if (parsedResume && hasFile) {
-      console.log("✅ New resume uploaded and parsed");
+      logger.info("New resume uploaded and parsed", { userId: String(userId) });
     }
 
     // Handle simple resume file upload
@@ -188,16 +189,19 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
       if (typeof req.body.profileUrls === "string") {
         const raw = req.body.profileUrls.trim().replace(/[.;]+$/, "");
         profileUrls = JSON.parse(raw);
-        console.log("Parsed profileUrls from string:", profileUrls);
+        logger.info("Parsed profileUrls from string", { count: profileUrls.length });
       } else if (Array.isArray(req.body.profileUrls)) {
         profileUrls = req.body.profileUrls;
-        console.log("ProfileUrls already an array:", profileUrls);
+        logger.info("ProfileUrls already provided as array", { count: profileUrls.length });
       }
     } catch (err) {
-      console.warn("Invalid profileUrls JSON:", err.message, "Raw value:", req.body.profileUrls);
+      logger.warn("Invalid profileUrls JSON", {
+        message: err.message,
+        rawValue: req.body.profileUrls,
+      });
     }
 
-    console.log(`Processing ${profileUrls.length} profiles for user ${userId}`);
+    logger.info(`Processing ${profileUrls.length} profiles for user ${userId}`);
     
     // Track successful operations
     let profilesQueued = 0;
@@ -208,7 +212,7 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
 
       const username = extractUsername(profile, profileUrl);
       if (!username) {
-        console.warn(`Unable to extract username for ${profile}:`, profileUrl);
+        logger.warn(`Unable to extract username for ${profile}`, { profileUrl });
         profilesFailed++;
         continue;
       }
@@ -232,14 +236,14 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
                 { upsert: true, new: true, setDefaultsOnInsert: true }
               );
               profilesQueued++;
-              console.log("✅ GitHub data updated (changes detected)");
+              logger.info("GitHub data updated (changes detected)", { userId: String(userId) });
             } else {
               profilesQueued++;
-              console.log("♻️ GitHub data unchanged, skipped DB write");
+              logger.info("GitHub data unchanged, skipped DB write", { userId: String(userId) });
             }
           } catch (ghErr) {
             profilesFailed++;
-            console.warn("GitHub save failed:", ghErr.message);
+            logger.warn("GitHub save failed", { message: ghErr.message });
           }
           break;
 
@@ -255,14 +259,14 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
                 { upsert: true, new: true, setDefaultsOnInsert: true }
               );
               profilesQueued++;
-              console.log("✅ LeetCode data updated (changes detected)");
+              logger.info("LeetCode data updated (changes detected)", { userId: String(userId) });
             } else {
               profilesQueued++;
-              console.log("♻️ LeetCode data unchanged, skipped DB write");
+              logger.info("LeetCode data unchanged, skipped DB write", { userId: String(userId) });
             }
           } catch (lcErr) {
             profilesFailed++;
-            console.warn("LeetCode save failed:", lcErr.message);
+            logger.warn("LeetCode save failed", { message: lcErr.message });
           }
           break;
 
@@ -278,14 +282,14 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
                 { upsert: true, new: true, setDefaultsOnInsert: true }
               );
               profilesQueued++;
-              console.log("✅ Codeforces data updated (changes detected)");
+              logger.info("Codeforces data updated (changes detected)", { userId: String(userId) });
             } else {
               profilesQueued++;
-              console.log("♻️ Codeforces data unchanged, skipped DB write");
+              logger.info("Codeforces data unchanged, skipped DB write", { userId: String(userId) });
             }
           } catch (cfErr) {
             profilesFailed++;
-            console.warn("Codeforces save failed:", cfErr.message);
+            logger.warn("Codeforces save failed", { message: cfErr.message });
           }
           break;
 
@@ -301,28 +305,30 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
                 { upsert: true, new: true, setDefaultsOnInsert: true }
               );
               profilesQueued++;
-              console.log("✅ CodeChef data updated (changes detected)");
+              logger.info("CodeChef data updated (changes detected)", { userId: String(userId) });
             } else {
               profilesQueued++;
-              console.log("♻️ CodeChef data unchanged, skipped DB write");
+              logger.info("CodeChef data unchanged, skipped DB write", { userId: String(userId) });
             }
           } catch (ccErr) {
             profilesFailed++;
-            console.warn("CodeChef save failed:", ccErr.message);
+            logger.warn("CodeChef save failed", { message: ccErr.message });
           }
           break;
 
         default:
-          console.warn(`Unsupported profile type: ${profile}`);
+          logger.warn(`Unsupported profile type: ${profile}`);
       }
     }
 
     // Try to merge data (optional - may not have data yet)
     try {
       await mergeData(userId);
-      console.log("Data merged successfully");
+      logger.info("Data merged successfully", { userId: String(userId) });
     } catch (mergeErr) {
-      console.warn("Failed to merge data (may not have scraped data yet):", mergeErr.message);
+      logger.warn("Failed to merge data (may not have scraped data yet)", {
+        message: mergeErr.message,
+      });
     }
 
     // Start preprocessing in background (don't wait for it)
@@ -330,8 +336,8 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
     if (profilesQueued > 0) {
       // Only preprocess if profiles were queued (asynchronously)
       runPreprocessor(userId)
-        .then(() => console.log("Preprocessor completed in background"))
-        .catch(err => console.warn("Background preprocessor warning:", err.message));
+        .then(() => logger.info("Preprocessor completed in background", { userId: String(userId) }))
+        .catch(err => logger.warn("Background preprocessor warning", { message: err.message }));
     }
 
     // Return success immediately (don't wait for preprocessing)
@@ -341,7 +347,7 @@ resumeRouter.post("/resume/upload", uploader, async (req, res) => {
     });
 
   } catch (err) {
-    console.error("Error in resume/upload:", err.message);
+    logger.error("Error in resume/upload", { message: err.message });
     return res.status(500).json({
       success: false,
       error: err.message,
