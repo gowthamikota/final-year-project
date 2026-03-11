@@ -398,6 +398,148 @@ def analyze_profile(user_id: str, job_description: str = ""):
         logger.exception(f"Skill gap analysis failed: {str(e)}")
         skill_gaps = None
     
+    # ================ STEP 6B: GENERATE EXPLANATION ================
+    
+    def get_platform_improvement_tip(platform, role):
+        """Get platform-specific improvement tip based on role."""
+        tips = {
+            "github": {
+                "web": "Add 2-3 recent frontend projects with live demos and good documentation.",
+                "sde": "Showcase system design projects and well-structured code contributions.",
+                "data": "Create ML projects with Jupyter notebooks and clear documentation."
+            },
+            "leetcode": {
+                "web": "Not critical for web roles, but 30-50 problems helps with basic DSA.",
+                "sde": "Aim for 150+ problems solved to demonstrate strong algorithmic skills.",
+                "data": "20-30 problems enough; focus more on GitHub ML projects instead."
+            },
+            "codeforces": {
+                "web": "Less relevant for web development; focus on GitHub instead.",
+                "sde": "500+ rating shows competitive programming strength; aim for improvement.",
+                "data": "Less relevant; prioritize ML/data science projects on GitHub."
+            },
+            "codechef": {
+                "web": "Lower priority; focus on portfolio projects instead.",
+                "sde": "400+ rating shows problem-solving skills; good supplementary metric.",
+                "data": "Lower priority; GitHub projects are more valuable."
+            },
+            "resume": {
+                "web": "Highlight framework expertise (React, Vue, Angular) and UI/UX work.",
+                "sde": "Emphasize system design, APIs, and backend technologies.",
+                "data": "Showcase ML projects, datasets handled, and domain expertise."
+            }
+        }
+        
+        role_tips = tips.get(platform, {})
+        return role_tips.get(role, f"Improve your {platform} profile.")
+    
+    def generate_explanation(scores, final_score, confidence_score, role, weights, skill_gaps):
+        """Generate human-readable explanation of scores."""
+        
+        # Top positive factors (highest scoring platforms)
+        sorted_scores = sorted(
+            [(p, s) for p, s in scores.items() if s > 0],
+            key=lambda x: x[1],
+            reverse=True
+        )
+        top_positive = [
+            {
+                "factor": p.capitalize(),
+                "score": s,
+                "weight": round(weights.get(p, 0) * 100, 1)
+            }
+            for p, s in sorted_scores[:3]
+        ]
+        
+        # Top negative factors (missing skills or low scores)
+        top_negative = []
+        
+        # Add low-scoring platforms
+        low_scores = [
+            {
+                "factor": p.capitalize(),
+                "score": s,
+                "weight": round(weights.get(p, 0) * 100, 1)
+            }
+            for p, s in sorted_scores[-2:]
+        ]
+        top_negative.extend(low_scores)
+        
+        # Add missing skills if available
+        if skill_gaps and skill_gaps.get('missing', []):
+            missing_skills = skill_gaps.get('missing', [])[:3]
+            for skill in missing_skills:
+                top_negative.append({
+                    "factor": f"Missing: {skill}",
+                    "score": 0,
+                    "impact": "medium"
+                })
+        
+        # Contribution breakdown (what each platform contributed to final score)
+        platforms_with_data = [p for p in weights.keys() if scores.get(p, 0) > 0]
+        if platforms_with_data:
+            total_weight = sum(weights[p] for p in platforms_with_data)
+            contribution = [
+                {
+                    "platform": p.capitalize(),
+                    "score": scores[p],
+                    "weight": round(weights[p] / total_weight * 100, 1),
+                    "contribution": round(scores[p] * weights[p] / total_weight, 1)
+                }
+                for p in sorted(platforms_with_data, key=lambda p: scores[p], reverse=True)
+            ]
+        else:
+            contribution = []
+        
+        # Improvement actions with estimated impact
+        improvement_actions = []
+        
+        # Suggest improvements for low-scoring platforms
+        for platform, score in sorted_scores:
+            if score < 60:
+                platform_weight = weights.get(platform, 0)
+                potential_gain = (80 - score) * platform_weight * 100  # Estimate
+                improvement_actions.append({
+                    "action": f"Improve {platform.capitalize()} profile/skills",
+                    "platform": platform.capitalize(),
+                    "currentScore": score,
+                    "targetScore": 80,
+                    "estimatedGain": round(min(potential_gain, 15), 1),
+                    "description": get_platform_improvement_tip(platform, role)
+                })
+        
+        # Suggest adding missing skills
+        if skill_gaps and skill_gaps.get('missing', []):
+            for skill in skill_gaps.get('missing', [])[:3]:
+                improvement_actions.append({
+                    "action": f"Learn and demonstrate {skill}",
+                    "skill": skill,
+                    "estimatedGain": 5.0,
+                    "description": f"Adding {skill} to your profile could improve compatibility by ~5 points"
+                })
+        
+        # Confidence explanation
+        connected_count = sum(1 for p in weights.keys() if scores.get(p, 0) >= 10)
+        total_platforms = len([p for p in weights.keys() if p != "activity"])
+        
+        if confidence_score >= 70:
+            confidence_notes = f"High confidence: {connected_count}/{total_platforms} platforms connected with strong data. This evaluation is reliable."
+        elif confidence_score >= 40:
+            confidence_notes = f"Medium confidence: {connected_count}/{total_platforms} platforms with data. More platform connections would improve reliability."
+        else:
+            confidence_notes = f"Low confidence: Only {connected_count}/{total_platforms} platforms connected. Connect more platforms (GitHub, LeetCode, etc.) for more accurate assessment."
+        
+        return {
+            "topPositiveFactors": top_positive,
+            "topNegativeFactors": top_negative,
+            "contributionBreakdown": contribution,
+            "improvementActions": improvement_actions[:5],  # Limit to 5 actions
+            "confidenceNotes": confidence_notes,
+            "confidenceLevel": "high" if confidence_score >= 70 else "medium" if confidence_score >= 40 else "low"
+        }
+    
+    explanation = generate_explanation(scores, final_score, confidence_score, role, weights, skill_gaps)
+    
     # ================ STEP 7: SAVE RESULTS TO MONGO ================
     
     try:
@@ -411,6 +553,7 @@ def analyze_profile(user_id: str, job_description: str = ""):
                     "confidenceScore": confidence_score,
                     "skillGaps": skill_gaps,
                     "skillRecommendations": skill_recommendations,
+                    "explanation": explanation,
                     "updatedAt": datetime.utcnow()
                 }
             },
@@ -426,6 +569,7 @@ def analyze_profile(user_id: str, job_description: str = ""):
             "confidenceScore": confidence_score,
             "skillGaps": skill_gaps,
             "skillRecommendations": skill_recommendations,
+            "explanation": explanation,
             "createdAt": datetime.utcnow()
         })
         
@@ -451,5 +595,6 @@ def analyze_profile(user_id: str, job_description: str = ""):
         "finalScore": final_score,
         "confidenceScore": confidence_score,
         "skillGaps": skill_gaps,
-        "skillRecommendations": skill_recommendations
+        "skillRecommendations": skill_recommendations,
+        "explanation": explanation
     }
