@@ -4,8 +4,23 @@ const { connectDb } = require("./config/database");
 const { userAuth } = require("./middlewares/verifyMiddleware.js");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 
 const app = express();
+app.use(helmet());
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Too many requests, please try again later.",
+  },
+});
+
 app.use(
   cors({
     origin: [
@@ -20,6 +35,7 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
+app.use("/api", apiLimiter);
 
 const authRouter = require("./routes/authRoute.js");
 const profileRouter = require("./routes/profileRoute.js");
