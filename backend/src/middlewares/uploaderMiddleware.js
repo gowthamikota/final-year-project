@@ -6,6 +6,14 @@ const { parser } = require("../services/parser");
 const resumeParsedDataModel = require("../models/resumeParsedData");
 const logger = require("../utils/logger");
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx"];
+
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, "../uploads/");
 if (!fs.existsSync(uploadsDir)) {
@@ -22,7 +30,25 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage }).single("resume");
+const fileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname || "").toLowerCase();
+  const isMimeAllowed = ALLOWED_MIME_TYPES.includes(file.mimetype);
+  const isExtAllowed = ALLOWED_EXTENSIONS.includes(ext);
+
+  if (!isMimeAllowed || !isExtAllowed) {
+    const invalidTypeError = new Error("Invalid file type. Only PDF, DOC, and DOCX are allowed.");
+    invalidTypeError.code = "INVALID_FILE_TYPE";
+    return cb(invalidTypeError);
+  }
+
+  return cb(null, true);
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+}).single("resume");
 
 // Calculate MD5 hash of a file
 function calculateFileHash(filePath) {
@@ -34,6 +60,21 @@ async function uploader(req, res, next) {
   upload(req, res, async (err) => {
     if (err) {
       logger.error("Multer upload error", { message: err.message });
+
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          success: false,
+          error: "File too large. Maximum allowed size is 5MB.",
+        });
+      }
+
+      if (err.code === "INVALID_FILE_TYPE") {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid file type. Only PDF, DOC, and DOCX are allowed.",
+        });
+      }
+
       return res.status(400).json({
         success: false,
         error: "File upload failed",
