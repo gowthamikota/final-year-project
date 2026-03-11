@@ -180,13 +180,7 @@ function Dashboard() {
   const hydrateDashboardFromApi = useCallback((apiResult) => {
     if (!apiResult?.data) return;
 
-    const { finalScore = 0, scores = {}, confidenceScore = 0, updatedAt, skillGaps, skillRecommendations } = apiResult.data;
-    
-    // DEBUG: Log actual scores received from API
-    console.log("🔍 API Scores Received:", scores);
-    console.log("🔍 Final Score:", finalScore);
-    console.log("🔍 Skill Gaps from API:", skillGaps);
-    console.log("🔍 Skill Recommendations:", skillRecommendations);
+    const { finalScore = 0, scores = {}, confidenceScore = 0, updatedAt, skillGaps } = apiResult.data;
     
     const normalizedScores = {
       resume: Number(scores.resume || 0),
@@ -195,8 +189,6 @@ function Dashboard() {
       codechef: Number(scores.codechef || 0),
       codeforces: Number(scores.codeforces || 0),
     };
-
-    console.log("🔍 Normalized Scores:", normalizedScores);
 
     const scoreValues = Object.values(normalizedScores);
     const avgScore = scoreValues.length
@@ -222,8 +214,6 @@ function Dashboard() {
       ];
     }
     
-    console.log("🔍 Skill Gaps to Display:", skillGapsToDisplay);
-
     setProfileScores(normalizedScores);
     setDashboardData({
       stats: {
@@ -238,7 +228,6 @@ function Dashboard() {
       skillGaps: skillGapsToDisplay,
     });
     
-    console.log("🎯 Confidence Score Set:", confidenceScore);
   }, [buildRecentAnalyses, buildSkillGaps]);
 
   // Fetch dashboard data from backend
@@ -263,7 +252,6 @@ function Dashboard() {
         }
         // If no analysis data, stats remain at 0 (initial state)
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
       } finally {
         setIsLoading(false);
       }
@@ -329,7 +317,6 @@ function Dashboard() {
           alert(`✅ Resume uploaded!\n\n⏳ Profiles are being scraped in the background...\nThis may take 20-30 seconds.\n\nYou can close this and click "Get Score" in a moment.`);
           
           // Wait 10 seconds before trying analysis (gives n8n time to scrape)
-          console.log("Waiting for profile scraping...");
           await new Promise(resolve => setTimeout(resolve, 10000));
           
           // Then wait for preprocessor to complete
@@ -338,7 +325,6 @@ function Dashboard() {
           while (retries < 5 && !preprocessSucceeded) {
             try {
               setIsAnalyzing(true);
-              console.log(`Attempt ${retries + 1}: Triggering analysis...`);
               
               const analysisResponse = await fetch(`${API_URL}/analysis/run`, {
                 method: 'POST',
@@ -366,10 +352,8 @@ function Dashboard() {
                 throw new Error('Analysis request failed');
               }
             } catch (analysisError) {
-              console.warn(`Analysis attempt ${retries + 1} failed:`, analysisError.message);
               retries++;
               if (retries < 5) {
-                console.log(`Waiting 5 seconds before retry...`);
                 await new Promise(resolve => setTimeout(resolve, 5000));
               }
             } finally {
@@ -385,11 +369,9 @@ function Dashboard() {
         }
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('Backend error response:', response.status, errorData);
         throw new Error(errorData.error || `Request failed with status ${response.status}`);
       }
     } catch (error) {
-      console.error("Error during preprocess:", error);
       alert(`⚠️ Issue during setup:\n\n${error.message}\n\nPlease try clicking "Get Score" in 30 seconds.`);
     } finally {
       setIsPreprocessing(false);
@@ -414,7 +396,6 @@ function Dashboard() {
         alert(`✅ Scores loaded successfully!\n\nOverall Score: ${Math.round(Number(result.data.finalScore || 0))}/100\n\nCheck the dashboard for detailed breakdown.`);
       }
     } catch (err) {
-      console.error('Get scores error:', err);
       alert('Unable to get scores. Please ensure analysis completed.');
     }
   };
@@ -447,7 +428,6 @@ function Dashboard() {
         setShowDetailedAnalysis(true);
       }
     } catch (err) {
-      console.error('Get analysis error:', err);
       alert('Unable to get detailed analysis. Please ensure analysis completed.');
     }
   };
