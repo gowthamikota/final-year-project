@@ -1,4 +1,5 @@
 const axios = require("axios");
+const logger = require("../../utils/logger");
 
 async function fetchLeetcode(username) {
   if (!username) {
@@ -95,7 +96,7 @@ async function fetchLeetcode(username) {
       contestGlobalRank: contestData?.globalRanking || 0,
     };
   } catch (err) {
-    console.error("LeetCode fetch error:", err.response?.data || err.message);
+    logger.error("LeetCode fetch error", { message: err.response?.data || err.message });
     throw new Error("Failed to fetch LeetCode profile");
   }
 }
