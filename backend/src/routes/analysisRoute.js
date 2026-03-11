@@ -136,6 +136,7 @@ analysisRouter.post("/analysis/run", async (req, res) => {
       success: true,
       message: "Profile analysis completed",
       data: pythonData,
+      explanation: pythonData.explanation || null,
     });
 
   } catch (err) {
@@ -238,6 +239,7 @@ Keep concise and actionable.
       data: result,
       history,
       suggestions,
+      explanation: result.explanation || null,
     });
 
   } catch (err) {
