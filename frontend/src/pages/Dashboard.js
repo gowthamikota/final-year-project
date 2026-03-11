@@ -10,6 +10,78 @@ const skillMetadata = {
   resume: "Resume Quality",
 };
 
+const buildFallbackExplanation = (analysisData) => {
+  if (!analysisData) return null;
+
+  const scores = analysisData.scores || {};
+  const skillGaps = analysisData.skillGaps || {};
+  const entries = Object.entries(scores)
+    .filter(([, value]) => Number(value) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]));
+
+  const topPositiveFactors = entries.slice(0, 3).map(([platform, value]) => ({
+    factor: platform.charAt(0).toUpperCase() + platform.slice(1),
+    score: Number(value),
+  }));
+
+  const topNegativeFactors = [
+    ...entries.slice(-2).map(([platform, value]) => ({
+      factor: platform.charAt(0).toUpperCase() + platform.slice(1),
+      score: Number(value),
+    })),
+    ...(Array.isArray(skillGaps.missing)
+      ? skillGaps.missing.slice(0, 3).map((skill) => ({
+          factor: `Missing: ${skill}`,
+          score: 0,
+        }))
+      : []),
+  ];
+
+  const contributionBreakdown = entries.map(([platform, value]) => ({
+    platform: platform.charAt(0).toUpperCase() + platform.slice(1),
+    score: Math.round(Number(value)),
+    contribution: Math.round(Number(value) / Math.max(entries.length, 1)),
+  }));
+
+  const improvementActions = [
+    ...entries
+      .filter(([, value]) => Number(value) < 70)
+      .slice(0, 3)
+      .map(([platform, value]) => ({
+        action: `Improve ${platform.charAt(0).toUpperCase() + platform.slice(1)} profile`,
+        currentScore: Number(value),
+        targetScore: 80,
+        estimatedGain: Math.max(3, Math.round((80 - Number(value)) / 4)),
+        description: `Improving your ${platform} evidence can raise your overall compatibility score.`,
+      })),
+    ...(Array.isArray(skillGaps.missing)
+      ? skillGaps.missing.slice(0, 2).map((skill) => ({
+          action: `Learn and demonstrate ${skill}`,
+          estimatedGain: 5,
+          description: `${skill} appears in the target role requirements but is missing from your current profile evidence.`,
+        }))
+      : []),
+  ];
+
+  const confidenceScore = Number(analysisData.confidenceScore || 0);
+  let confidenceNotes = "Limited reliability explanation available.";
+  if (confidenceScore >= 70) {
+    confidenceNotes = "High confidence: multiple connected sources are contributing enough evidence for a reliable evaluation.";
+  } else if (confidenceScore >= 40) {
+    confidenceNotes = "Medium confidence: some sources are contributing, but more connected profiles would improve reliability.";
+  } else {
+    confidenceNotes = "Low confidence: the score is based on limited available evidence, so connecting more platforms should improve reliability.";
+  }
+
+  return {
+    topPositiveFactors,
+    topNegativeFactors,
+    contributionBreakdown,
+    improvementActions,
+    confidenceNotes,
+  };
+};
+
 function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -363,6 +435,7 @@ function Dashboard() {
           confidenceScore: result.data.confidenceScore || 0,
           skillGaps: result.data.skillGaps || null,
           skillRecommendations: result.data.skillRecommendations || [],
+          explanation: result.explanation || result.data.explanation || null,
           suggestions: result.suggestions || 'Suggestions unavailable. Configure GEMINI_API_KEY.',
         });
         
@@ -1244,6 +1317,80 @@ function Dashboard() {
                     )}
                   </div>
                 </div>
+
+                {(detailedAnalysisData.explanation || buildFallbackExplanation(detailedAnalysisData)) && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-gradient-to-br from-violet-50 to-indigo-50 border-2 border-violet-200 rounded-xl p-6">
+                      <h3 className="text-xl font-bold text-gray-900 mb-4">Why This Score?</h3>
+                      <p className="text-sm text-gray-700 mb-4">
+                        {(detailedAnalysisData.explanation || buildFallbackExplanation(detailedAnalysisData)).confidenceNotes}
+                      </p>
+
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm font-semibold text-green-700 mb-2">Top Positive Factors</p>
+                          <div className="space-y-2">
+                            {(detailedAnalysisData.explanation || buildFallbackExplanation(detailedAnalysisData)).topPositiveFactors?.map((factor, idx) => (
+                              <div key={idx} className="flex items-center justify-between bg-white rounded-lg p-3 border border-green-100">
+                                <span className="text-sm font-medium text-gray-900">{factor.factor}</span>
+                                <span className="text-sm font-bold text-green-700">{Math.round(factor.score)}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-sm font-semibold text-red-700 mb-2">Main Reasons Holding Score Back</p>
+                          <div className="space-y-2">
+                            {(detailedAnalysisData.explanation || buildFallbackExplanation(detailedAnalysisData)).topNegativeFactors?.map((factor, idx) => (
+                              <div key={idx} className="flex items-center justify-between bg-white rounded-lg p-3 border border-red-100">
+                                <span className="text-sm font-medium text-gray-900">{factor.factor}</span>
+                                <span className="text-sm font-bold text-red-700">{Math.round(factor.score)}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-sm font-semibold text-violet-700 mb-2">Contribution Breakdown</p>
+                          <div className="space-y-3">
+                            {(detailedAnalysisData.explanation || buildFallbackExplanation(detailedAnalysisData)).contributionBreakdown?.map((item, idx) => (
+                              <div key={idx}>
+                                <div className="flex justify-between text-sm mb-1">
+                                  <span className="font-medium text-gray-800">{item.platform}</span>
+                                  <span className="text-gray-700">{item.score}%</span>
+                                </div>
+                                <div className="w-full bg-white rounded-full h-2 border border-violet-100">
+                                  <div className="h-2 rounded-full bg-violet-600" style={{ width: `${Math.min(100, item.score)}%` }}></div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl p-6">
+                      <h3 className="text-xl font-bold text-gray-900 mb-4">How to Improve Your Score</h3>
+                      <div className="space-y-3">
+                        {(detailedAnalysisData.explanation || buildFallbackExplanation(detailedAnalysisData)).improvementActions?.map((action, idx) => (
+                          <div key={idx} className="bg-white rounded-lg p-4 border border-blue-100">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <p className="font-semibold text-gray-900">{action.action}</p>
+                              <span className="text-sm font-bold text-blue-700 whitespace-nowrap">+{action.estimatedGain} pts</span>
+                            </div>
+                            <p className="text-sm text-gray-700">{action.description}</p>
+                            {action.currentScore !== undefined && (
+                              <p className="text-xs text-gray-500 mt-2">
+                                Current: {Math.round(action.currentScore)}% | Target: {action.targetScore}%
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50 border-2 border-purple-300 rounded-xl p-8 shadow-xl">
                   <div className="flex items-start gap-4 mb-8">
