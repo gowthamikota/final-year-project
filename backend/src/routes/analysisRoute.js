@@ -7,6 +7,7 @@ const AnalysisHistory = require("../models/analysisHistoryData");
 const { ObjectId } = require('mongoose').Types;
 const multer = require("multer");
 const { validate, schemas } = require("../utils/validator.js");
+const logger = require("../utils/logger");
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -99,7 +100,7 @@ analysisRouter.get("/analysis/history/:userId", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("History fetch error:", err.message);
+    logger.error("History fetch error", { message: err.message });
     return res.status(500).json({ success: false, error: "Failed to fetch analysis history" });
   }
 });
@@ -141,7 +142,7 @@ analysisRouter.post("/analysis/run", validate(schemas.analysisRun), async (req, 
     });
 
   } catch (err) {
-    console.error("Analysis error:", err.response?.data || err.message);
+    logger.error("Analysis error", { message: err.response?.data || err.message });
 
     return res.status(500).json({
       success: false,
@@ -182,10 +183,11 @@ analysisRouter.get("/analysis/:userId", async (req, res) => {
       .limit(10)
       .lean();
 
-    console.log("🔍 DEBUG - Analysis result for userId:", userId);
-    console.log("  Scores:", result?.scores);
-    console.log("  Final Score:", result?.finalScore);
-    console.log("  History count:", history?.length);
+    logger.info("Analysis loaded", {
+      userId,
+      hasResult: Boolean(result),
+      historyCount: history?.length || 0,
+    });
 
     if (!result) {
       return res.status(404).json({
@@ -244,7 +246,7 @@ Keep concise and actionable.
     });
 
   } catch (err) {
-    console.error("LLM error:", err.message);
+    logger.error("LLM error", { message: err.message });
 
     return res.status(500).json({
       success: false,
