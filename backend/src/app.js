@@ -6,6 +6,7 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const logger = require("./utils/logger");
 
 const app = express();
 app.use(helmet());
@@ -59,11 +60,11 @@ app.use(errorHandler);
 
 connectDb()
   .then(() => {
-    console.log("Database Connected");
+    logger.info("Database connected");
     app.listen(process.env.PORT, () => {
-      console.log(`Server started on port ${process.env.PORT}`);
+      logger.info(`Server started on port ${process.env.PORT}`);
     });
   })
   .catch((err) => {
-    console.log("Error:", err.message);
+    logger.error("Server startup error", { message: err.message });
   });
