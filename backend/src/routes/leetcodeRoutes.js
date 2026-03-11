@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { userAuth } = require("../middlewares/verifyMiddleware.js");
 const { saveLeetCodeProfile } = require("../services/leetcodeService");
+const logger = require("../utils/logger");
 
 router.get("/profile/:username", userAuth, async (req, res) => {
   try {
@@ -18,7 +19,7 @@ router.get("/profile/:username", userAuth, async (req, res) => {
     const result = await saveLeetCodeProfile(username, userId);
     res.json({ success: true, ...result });
   } catch (err) {
-    console.error(err);
+    logger.error("Failed to fetch LeetCode profile", { message: err.message });
     res.status(500).json({ 
       success: false,
       error: "Failed to fetch profile: " + err.message 
