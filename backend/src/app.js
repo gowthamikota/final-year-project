@@ -26,12 +26,19 @@ const profileRouter = require("./routes/profileRoute.js");
 const resumeRouter = require("./routes/resumeRoute.js");
 const analysisRouter = require("./routes/analysisRoute.js");
 const leetcodeRouter = require("./routes/leetcodeRoutes.js");
+const {
+  notFoundHandler,
+  errorHandler,
+} = require("./middlewares/errorHandler.js");
 
 app.use("/api", authRouter);
 app.use("/api", userAuth, profileRouter);
 app.use("/api", userAuth, resumeRouter);
 app.use("/api", userAuth, analysisRouter);
 app.use("/api", userAuth, leetcodeRouter);
+
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 
 connectDb()
