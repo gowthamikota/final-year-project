@@ -4,10 +4,15 @@ const authRouter = express.Router();
 const { validateSignUpData } = require("../services/validate.js");
 const userModel = require("../models/user.js");
 const bcrypt = require("bcrypt");
+const { validate, schemas } = require("../utils/validator.js");
 
-authRouter.post("/signup", async (req, res) => {
+authRouter.post("/signup", validate(schemas.signup), async (req, res) => {
   try {
-    const data = validateSignUpData(req);
+    const requestWithValidatedBody = {
+      ...req,
+      body: req.validatedBody,
+    };
+    const data = validateSignUpData(requestWithValidatedBody);
     const { firstName, lastName, email, password } = data;
     
     // Don't hash password here - the pre-save hook in user model will do it
@@ -25,16 +30,9 @@ authRouter.post("/signup", async (req, res) => {
   }
 });
 
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", validate(schemas.login), async (req, res) => {
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: "Email and password are required.",
-      });
-    }
+    const { email, password } = req.validatedBody;
 
     // 🔥 IMPORTANT FIX
     const user = await userModel
