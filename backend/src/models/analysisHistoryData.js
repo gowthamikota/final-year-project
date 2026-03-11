@@ -38,6 +38,10 @@ const analysisHistorySchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    explanation: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
     finalScore: {
       type: Number,
       default: 0,
