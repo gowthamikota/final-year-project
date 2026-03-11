@@ -7,6 +7,8 @@ class AppError extends Error {
   }
 }
 
+const logger = require("../utils/logger");
+
 const notFoundHandler = (req, res) => {
   return res.status(404).json({
     success: false,
@@ -19,7 +21,7 @@ const errorHandler = (err, req, res, next) => {
   const statusCode = err.statusCode || 500;
 
   if (process.env.NODE_ENV !== "test") {
-    console.error("Unhandled error:", err);
+    logger.error("Unhandled error", { message: err.message, stack: err.stack });
   }
 
   return res.status(statusCode).json({
