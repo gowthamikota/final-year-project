@@ -4,6 +4,7 @@ const fs = require("fs");
 const crypto = require("crypto");
 const { parser } = require("../services/parser");
 const resumeParsedDataModel = require("../models/resumeParsedData");
+const logger = require("../utils/logger");
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, "../uploads/");
@@ -32,7 +33,7 @@ function calculateFileHash(filePath) {
 async function uploader(req, res, next) {
   upload(req, res, async (err) => {
     if (err) {
-      console.error("Multer upload error:", err.message);
+      logger.error("Multer upload error", { message: err.message });
       return res.status(400).json({
         success: false,
         error: "File upload failed",
@@ -67,11 +68,11 @@ async function uploader(req, res, next) {
         });
       }
 
-      console.log("Sending file to Python parser:", filePath);
+      logger.info("Sending file to Python parser", { filePath });
 
       // Calculate hash of uploaded file
       const fileHash = calculateFileHash(filePath);
-      console.log("📄 File hash:", fileHash);
+      logger.info("Resume file hash generated", { fileHash });
 
       // Check if we have an existing resume with the same hash
       const existingResume = await resumeParsedDataModel
@@ -79,19 +80,19 @@ async function uploader(req, res, next) {
         .sort({ createdAt: -1 });
 
       if (existingResume && existingResume.fileHash === fileHash) {
-        console.log("✅ SAME RESUME DETECTED - Reusing from database (NO PARSING)");
+        logger.info("Same resume detected; reusing parsed data", { userId: String(userId) });
         req.parsedResume = existingResume;
         req.resumeReuseReason = "identical_hash";
         return next();
       }
 
-      console.log("📝 NEW RESUME DETECTED - Parsing...");
+      logger.info("New resume detected; parsing started", { userId: String(userId) });
       let parsed;
       try {
         parsed = await parser(filePath);
         // console.log("Parsed result:", parsed); // Removed - too verbose
       } catch (parseError) {
-        console.error("Resume parsing failed:", parseError.message);
+        logger.error("Resume parsing failed", { message: parseError.message });
         return res.status(500).json({
           success: false,
           error: "Resume parsing microservice failed. Ensure Python service is running.",
@@ -121,7 +122,7 @@ async function uploader(req, res, next) {
       req.parsedResume = savedResume;
       next();
     } catch (error) {
-      console.error("Error in uploader:", error.message);
+      logger.error("Uploader middleware error", { message: error.message });
       res.status(500).json({
         success: false,
         error: error.message,
