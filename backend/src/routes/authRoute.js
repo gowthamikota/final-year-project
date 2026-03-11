@@ -5,6 +5,7 @@ const { validateSignUpData } = require("../services/validate.js");
 const userModel = require("../models/user.js");
 const bcrypt = require("bcrypt");
 const { validate, schemas } = require("../utils/validator.js");
+const logger = require("../utils/logger");
 
 authRouter.post("/signup", validate(schemas.signup), async (req, res) => {
   try {
@@ -25,7 +26,7 @@ authRouter.post("/signup", validate(schemas.signup), async (req, res) => {
     await user.save();
     return res.status(200).json({ success: true, message: "User Created Successfully", user });
   } catch (err) {
-    console.error("Error Detected:", err.message);
+    logger.error("Signup error", { message: err.message });
     return res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -72,6 +73,7 @@ authRouter.post("/login", validate(schemas.login), async (req, res) => {
     });
 
   } catch (err) {
+    logger.error("Login error", { message: err.message });
     res.status(500).json({
       success: false,
       error: "Server error",
