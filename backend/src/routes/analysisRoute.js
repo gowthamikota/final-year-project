@@ -16,6 +16,7 @@ const groq = new Groq({
 const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
 const PYTHON_SERVICE_URL =
   process.env.PYTHON_SERVICE_URL || "http://localhost:8000";
+const escapeRegex = (value = "") => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // ---------------- ANALYSIS HISTORY (FILTER + PAGINATION) ----------------
 analysisRouter.get("/analysis/history/:userId", async (req, res) => {
@@ -50,7 +51,7 @@ analysisRouter.get("/analysis/history/:userId", async (req, res) => {
     const andConditions = [];
 
     if (q && q.trim()) {
-      const term = q.trim();
+      const term = escapeRegex(q.trim());
       andConditions.push({
         $or: [
         { jobRole: { $regex: term, $options: "i" } },
@@ -61,7 +62,7 @@ analysisRouter.get("/analysis/history/:userId", async (req, res) => {
     }
 
     if (role && role.trim()) {
-      const roleRegex = { $regex: `^${role.trim()}$`, $options: "i" };
+      const roleRegex = { $regex: `^${escapeRegex(role.trim())}$`, $options: "i" };
       andConditions.push({
         $or: [{ jobRole: roleRegex }, { role: roleRegex }],
       });
@@ -132,7 +133,11 @@ analysisRouter.post("/analysis/run", validate(schemas.analysisRun), async (req, 
     });
 
   } catch (err) {
-    logger.error("Analysis error", { message: err.response?.data || err.message });
+    logger.error("Analysis error", {
+      code: err.code,
+      status: err.response?.status,
+      message: err.message,
+    });
 
     return sendError(res, "Analysis service failed", 500);
   }
