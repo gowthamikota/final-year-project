@@ -6,6 +6,8 @@ const requiredEnvVars = [
   "PORT",
   "CLIENT_URL",
   "PYTHON_SERVICE_URL",
+  "GROQ_API_KEY",
+  "GITHUB_TOKEN",
 ];
 
 const missingVars = requiredEnvVars.filter((name) => {
