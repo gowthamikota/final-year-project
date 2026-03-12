@@ -1,5 +1,6 @@
 const express = require("express");
 const authRouter = express.Router();
+const crypto = require("crypto");
 
 const { validateSignUpData } = require("../services/validate.js");
 const userModel = require("../models/user.js");
@@ -90,4 +91,91 @@ authRouter.post("/logout", async (req, res) => {
     return sendError(res, err.message, 500);
   }
 });
+
+// ---------------- FORGOT PASSWORD ----------------
+authRouter.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return sendError(res, "Email is required", 400);
+    }
+
+    const user = await userModel.findOne({ email: email.toLowerCase().trim() });
+
+    if (!user) {
+      // Don't reveal whether email exists (security best practice)
+      return sendSuccess(res, null, "If an account exists with this email, you will receive a password reset link", 200);
+    }
+
+    // Generate a 6-character alphanumeric token
+    const resetToken = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    // Update user with reset token
+    user.resetToken = resetToken;
+    user.resetTokenExpiry = resetTokenExpiry;
+    await user.save();
+
+    logger.info("Password reset token generated", { email });
+
+    // TODO: Replace with email delivery service and avoid returning token in production.
+    return sendSuccess(
+      res,
+      { resetToken },
+      "Password reset instructions sent. Please check your email or use the reset code provided.",
+      200
+    );
+  } catch (err) {
+    logger.error("Forgot password error", { message: err.message });
+    return sendError(res, "Failed to process password reset request", 500);
+  }
+});
+
+// ---------------- RESET PASSWORD ----------------
+authRouter.post("/reset-password", async (req, res) => {
+  try {
+    const { resetToken, newPassword } = req.body;
+
+    if (!resetToken || !newPassword) {
+      return sendError(res, "Reset token and new password are required", 400);
+    }
+
+    // Validate password format
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      return sendError(
+        res,
+        "Password must be at least 8 characters long and contain at least one letter and one number",
+        400
+      );
+    }
+
+    // Find user with matching reset token and valid expiry
+    const user = await userModel
+      .findOne({
+        resetToken,
+        resetTokenExpiry: { $gt: new Date() },
+      })
+      .select("+resetToken +resetTokenExpiry");
+
+    if (!user) {
+      return sendError(res, "Invalid or expired reset token", 400);
+    }
+
+    // Update password
+    user.password = newPassword;
+    user.resetToken = undefined;
+    user.resetTokenExpiry = undefined;
+    await user.save();
+
+    logger.info("Password reset successful", { userId: user._id.toString() });
+
+    return sendSuccess(res, null, "Password reset successfully. Please log in with your new password.", 200);
+  } catch (err) {
+    logger.error("Reset password error", { message: err.message });
+    return sendError(res, "Failed to reset password", 500);
+  }
+});
+
 module.exports = authRouter;
