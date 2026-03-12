@@ -35,7 +35,7 @@ async function parser(filePath) {
     logger.error("Resume parsing error", {
       code: err.code,
       status: err.response?.status,
-      message: err.response?.data || err.message,
+      message: err.message,
     });
 
     if (err.code === "ECONNABORTED") {
