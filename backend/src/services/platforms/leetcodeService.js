@@ -96,7 +96,11 @@ async function fetchLeetcode(username) {
       contestGlobalRank: contestData?.globalRanking || 0,
     };
   } catch (err) {
-    logger.error("LeetCode fetch error", { message: err.response?.data || err.message });
+    logger.error("LeetCode fetch error", {
+      code: err.code,
+      status: err.response?.status,
+      message: err.message,
+    });
     throw new Error("Failed to fetch LeetCode profile");
   }
 }
