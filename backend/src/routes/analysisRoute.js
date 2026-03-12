@@ -143,6 +143,7 @@ analysisRouter.get("/analysis/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
     const { jobRole } = req.query;
+    const includeSuggestions = String(req.query.includeSuggestions || "").toLowerCase() === "true";
     const requesterId = req.user?._id?.toString();
 
     if (!requesterId || requesterId !== userId) {
@@ -158,11 +159,13 @@ analysisRouter.get("/analysis/:userId", async (req, res) => {
       return sendError(res, "Invalid userId format", 400);
     }
 
-    const result = await FinalResults.findOne({ userId: objectId });
-    const history = await AnalysisHistory.find({ userId: objectId })
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .lean();
+    const [result, history] = await Promise.all([
+      FinalResults.findOne({ userId: objectId }).lean(),
+      AnalysisHistory.find({ userId: objectId })
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean(),
+    ]);
 
     logger.info("Analysis loaded", {
       userId,
@@ -174,7 +177,10 @@ analysisRouter.get("/analysis/:userId", async (req, res) => {
       return sendError(res, "No analysis found", 404);
     }
 
-    const prompt = `
+    let suggestions = "";
+
+    if (includeSuggestions) {
+      const prompt = `
 Developer Scores:
 ${JSON.stringify(result.scores, null, 2)}
 
@@ -198,22 +204,23 @@ Generate:
 Keep concise and actionable.
 `;
 
-    const completion = await groq.chat.completions.create({
-      model: GROQ_MODEL,
-      messages: [
-        {
-          role: "system",
-          content: "You are a concise technical career coach for software developers. You help interpret candidate evaluation data, including confidence scores that indicate data reliability. You do NOT calculate scores - you explain them.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      temperature: 0.3,
-    });
+      const completion = await groq.chat.completions.create({
+        model: GROQ_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "You are a concise technical career coach for software developers. You help interpret candidate evaluation data, including confidence scores that indicate data reliability. You do NOT calculate scores - you explain them.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.3,
+      });
 
-    const suggestions = completion.choices?.[0]?.message?.content || "";
+      suggestions = completion.choices?.[0]?.message?.content || "";
+    }
 
     return sendSuccess(res, result, "Analysis fetched", 200, {
       history,
