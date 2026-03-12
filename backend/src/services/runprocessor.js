@@ -23,9 +23,11 @@ async function runPreprocessor(userId) {
   } catch (err) {
     logger.error("Preprocessor error", {
       userId,
-      message: err.response?.data?.error || err.message,
+      code: err.code,
+      status: err.response?.status,
+      message: err.message,
     });
-    throw new Error(`Preprocessing failed: ${err.response?.data?.error || err.message}`);
+    throw new Error("Preprocessing failed");
   }
 }
 
