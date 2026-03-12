@@ -1,39 +1,136 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
 function ForgotPassword() {
   const [email, setEmail] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [issuedResetToken, setIssuedResetToken] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [step, setStep] = useState(1); // Step 1: Enter email, Step 2: Enter reset token + password
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const validateEmail = (emailStr) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(emailStr);
+  };
+
+  const validatePassword = (pwd) => {
+    return /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(pwd);
+  };
+
+  const handleRequestReset = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccessMessage("");
+    setIssuedResetToken("");
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Basic validation
     if (!email) {
       setError("Please enter your email address.");
       setIsLoading(false);
       return;
     }
 
-    // Email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!validateEmail(email)) {
       setError("Please enter a valid email address.");
       setIsLoading(false);
       return;
     }
 
-    // Simulate successful password reset request
-    setIsLoading(false);
-    setIsSubmitted(true);
+    try {
+      const response = await fetch(`${API_URL}/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to request password reset');
+      }
+
+      const returnedToken = data?.data?.resetToken || "";
+      if (returnedToken) {
+        setIssuedResetToken(returnedToken);
+        setResetToken(returnedToken);
+      }
+
+      setSuccessMessage(data.message || 'Check your email for reset instructions');
+      setStep(2); // Move to reset token entry
+    } catch (err) {
+      setError(err.message || 'Failed to process request');
+      console.error("Forgot password error", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccessMessage("");
+    setIsLoading(true);
+
+    if (!resetToken) {
+      setError("Please enter the reset code from your email.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!newPassword) {
+      setError("Please enter a new password.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!validatePassword(newPassword)) {
+      setError("Password must be at least 8 characters long and contain at least one letter and one number");
+      setIsLoading(false);
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match.");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ resetToken, newPassword }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to reset password');
+      }
+
+      setSuccessMessage("Password reset successfully! Redirecting to login...");
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
+    } catch (err) {
+      setError(err.message || 'Failed to reset password');
+      console.error("Reset password error", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBackToLogin = () => {
@@ -60,27 +157,20 @@ function ForgotPassword() {
             </div>
           </div>
           <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            Forgot Password
+            Reset Password
           </h2>
           <p className="text-gray-600 text-lg">
-            {isSubmitted 
-              ? "Check your email for reset instructions" 
-              : "Enter your email to reset your password"
+            {step === 1 
+              ? "Enter your email to receive a reset code" 
+              : "Enter the reset code and your new password"
             }
           </p>
         </div>
 
-        {!isSubmitted ? (
-          /* Reset Password Form */
-          <form onSubmit={handleSubmit} className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+        {/* Step 1: Email Entry */}
+        {step === 1 && (
+          <form onSubmit={handleRequestReset} className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
             <div className="space-y-6">
-              {/* Instructions */}
-              <div className="text-center">
-                <p className="text-gray-600 text-sm">
-                  Enter the email address associated with your account and we'll send you instructions to reset your password.
-                </p>
-              </div>
-
               {/* Email Field */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
@@ -117,6 +207,18 @@ function ForgotPassword() {
                 </div>
               )}
 
+              {/* Success Message */}
+              {successMessage && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                  <div className="flex items-center">
+                    <svg className="h-5 w-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-sm text-green-700">{successMessage}</span>
+                  </div>
+                </div>
+              )}
+
               {/* Submit Button */}
               <button
                 type="submit"
@@ -126,11 +228,11 @@ function ForgotPassword() {
                 {isLoading ? (
                   <div className="flex items-center">
                     <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin mr-2"></div>
-                    Sending Instructions...
+                    Sending Reset Code...
                   </div>
                 ) : (
                   <div className="flex items-center">
-                    Send Reset Instructions
+                    Send Reset Code
                     <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
@@ -150,55 +252,147 @@ function ForgotPassword() {
               </div>
             </div>
           </form>
-        ) : (
-          /* Success Message */
-          <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
-            <div className="text-center space-y-6">
-              {/* Success Icon */}
-              <div className="flex justify-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
+        )}
+
+        {/* Step 2: Reset Token & Password */}
+        {step === 2 && (
+          <form onSubmit={handleResetPassword} className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+            <div className="space-y-6">
+              {issuedResetToken && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <p className="text-sm text-blue-700">
+                    Reset code: <span className="font-bold tracking-wider">{issuedResetToken}</span>
+                  </p>
                 </div>
+              )}
+
+              {/* Reset Token Field */}
+              <div>
+                <label htmlFor="resetToken" className="block text-sm font-medium text-gray-700 mb-2">
+                  Reset Code
+                </label>
+                <input
+                  id="resetToken"
+                  type="text"
+                  placeholder="Enter the code from your email"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/50 backdrop-blur-sm"
+                  value={resetToken}
+                  onChange={(e) => setResetToken(e.target.value)}
+                  required
+                />
               </div>
+
+              {/* New Password Field */}
+              <div>
+                <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                  New Password
+                </label>
+                <input
+                  id="newPassword"
+                  type="password"
+                  placeholder="Enter your new password"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/50 backdrop-blur-sm"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  At least 8 characters with 1 letter and 1 number
+                </p>
+              </div>
+
+              {/* Confirm Password Field */}
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirm Password
+                </label>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Confirm your new password"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/50 backdrop-blur-sm"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                  <div className="flex items-center">
+                    <svg className="h-5 w-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm text-red-700">{error}</span>
+                  </div>
+                </div>
+              )}
 
               {/* Success Message */}
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Check Your Email</h3>
-                <p className="text-gray-600">
-                  We've sent password reset instructions to <span className="font-semibold text-blue-600">{email}</span>
-                </p>
-                <p className="text-gray-500 text-sm mt-2">
-                  If you don't see the email, check your spam folder or try again.
-                </p>
-              </div>
+              {successMessage && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                  <div className="flex items-center">
+                    <svg className="h-5 w-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-sm text-green-700">{successMessage}</span>
+                  </div>
+                </div>
+              )}
 
-              {/* Action Buttons */}
-              <div className="space-y-4">
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:-translate-y-0.5 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                {isLoading ? (
+                  <div className="flex items-center">
+                    <div className="w-5 h-5 border-t-2 border-white rounded-full animate-spin mr-2"></div>
+                    Resetting Password...
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    Reset Password
+                    <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                  </div>
+                )}
+              </button>
+
+              {/* Back Button */}
+              <div className="text-center">
                 <button
-                  onClick={() => setIsSubmitted(false)}
-                  className="w-full py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                  type="button"
+                  onClick={() => {
+                    setStep(1);
+                    setError("");
+                    setSuccessMessage("");
+                    setIssuedResetToken("");
+                    setResetToken("");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  }}
+                  className="text-blue-600 hover:text-blue-500 font-medium transition-colors duration-200"
                 >
-                  Resend Instructions
-                </button>
-                <button
-                  onClick={handleBackToLogin}
-                  className="w-full py-3 px-4 border border-gray-300 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-                >
-                  Back to Sign In
+                  ← Enter email again
                 </button>
               </div>
             </div>
-          </div>
+          </form>
         )}
 
         {/* Additional Links */}
         <div className="text-center text-sm text-gray-600">
-          Need help? Contact our{" "}
-          <a href="mailto:support@profileecho.com" className="text-blue-600 hover:text-blue-500 transition-colors duration-200">
-            support team
-          </a>
+          Did you remember your password?{" "}
+          <button
+            onClick={handleBackToLogin}
+            className="text-blue-600 hover:text-blue-500 transition-colors duration-200"
+          >
+            Sign In
+          </button>
         </div>
       </div>
     </div>
