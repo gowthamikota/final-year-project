@@ -133,10 +133,29 @@ async function uploader(req, res, next) {
         parsed = await parser(filePath);
         // console.log("Parsed result:", parsed); // Removed - too verbose
       } catch (parseError) {
-        logger.error("Resume parsing failed", { message: parseError.message });
+        logger.error("Resume parsing failed", {
+          code: parseError.code,
+          message: parseError.message,
+        });
+
+        if (parseError.code === "PARSER_TIMEOUT") {
+          return res.status(504).json({
+            success: false,
+            error:
+              "Resume parsing timed out. Please try again, or upload a smaller/simple text resume.",
+          });
+        }
+
+        if (parseError.code === "PARSER_UNAVAILABLE") {
+          return res.status(503).json({
+            success: false,
+            error: "Resume parsing microservice is unavailable.",
+          });
+        }
+
         return res.status(500).json({
           success: false,
-          error: "Resume parsing microservice failed. Ensure Python service is running.",
+          error: "Resume parsing microservice failed.",
         });
       }
 
