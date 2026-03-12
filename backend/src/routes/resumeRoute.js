@@ -39,6 +39,15 @@ const hasDataChanged = (existing, newData) => {
 resumeRouter.get("/resume/parsed/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
+    const requesterId = req.user?._id?.toString();
+
+    // Enforce that user can only retrieve their own resume
+    if (!requesterId || requesterId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: "Forbidden: You can only access your own resume data",
+      });
+    }
 
     if (!userId) {
       return res.status(400).json({
