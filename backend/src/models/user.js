@@ -123,6 +123,17 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    // ================= PASSWORD RESET =================
+    resetToken: {
+      type: String,
+      select: false,
+    },
+
+    resetTokenExpiry: {
+      type: Date,
+      select: false,
+    },
   },
   { timestamps: true }
 );
