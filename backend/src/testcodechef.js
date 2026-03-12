@@ -20,7 +20,7 @@ async function test() {
     console.log("GitHub Data:");
     console.log(data);
   } catch (err) {
-    console.error("Error:", err.response?.data || err.message);
+    console.error("Error:", err.message);
   }
 }
 
