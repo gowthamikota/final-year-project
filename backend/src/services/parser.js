@@ -3,6 +3,12 @@ const logger = require("../utils/logger");
 
 const PYTHON_SERVICE_URL =
   process.env.PYTHON_SERVICE_URL || "http://localhost:8000";
+const DEFAULT_PARSER_TIMEOUT_MS = 120000;
+const parsedTimeout = Number(process.env.RESUME_PARSER_TIMEOUT_MS);
+const RESUME_PARSER_TIMEOUT_MS =
+  Number.isFinite(parsedTimeout) && parsedTimeout > 0
+    ? parsedTimeout
+    : DEFAULT_PARSER_TIMEOUT_MS;
 
 async function parser(filePath) {
   if (!filePath) {
@@ -13,7 +19,7 @@ async function parser(filePath) {
     const response = await axios.post(
       `${PYTHON_SERVICE_URL}/parse-resume`,
       { filePath },
-      { timeout: 30000 }
+      { timeout: RESUME_PARSER_TIMEOUT_MS }
     );
 
     if (!response.data?.success) {
@@ -27,11 +33,29 @@ async function parser(filePath) {
 
   } catch (err) {
     logger.error("Resume parsing error", {
+      code: err.code,
+      status: err.response?.status,
       message: err.response?.data || err.message,
     });
 
+    if (err.code === "ECONNABORTED") {
+      const timeoutError = new Error(
+        `Resume parsing timed out after ${RESUME_PARSER_TIMEOUT_MS}ms.`
+      );
+      timeoutError.code = "PARSER_TIMEOUT";
+      throw timeoutError;
+    }
+
+    if (err.code === "ECONNREFUSED" || err.code === "ENOTFOUND") {
+      const unavailableError = new Error(
+        "Resume parsing service unavailable. Ensure Python microservice is running."
+      );
+      unavailableError.code = "PARSER_UNAVAILABLE";
+      throw unavailableError;
+    }
+
     throw new Error(
-      "Resume parsing service unavailable. Ensure Python microservice is running."
+      "Resume parsing failed due to an upstream parser error."
     );
   }
 }
