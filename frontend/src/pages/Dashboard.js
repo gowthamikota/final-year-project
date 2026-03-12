@@ -240,7 +240,7 @@ function Dashboard() {
         const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
         
         // Fetch analysis results
-        const analysisResponse = await fetch(`${API_URL}/analysis/${user._id}`, {
+        const analysisResponse = await fetch(`${API_URL}/analysis/${user._id}?includeSuggestions=false`, {
           credentials: 'include',
         });
 
@@ -381,7 +381,7 @@ function Dashboard() {
   const handleGetScores = async () => {
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-      const response = await fetch(`${API_URL}/analysis/${user._id}`, { credentials: 'include' });
+      const response = await fetch(`${API_URL}/analysis/${user._id}?includeSuggestions=false`, { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch scores');
       const result = await response.json();
       if (result.success && result.data) {
@@ -403,7 +403,7 @@ function Dashboard() {
   const handleGetCompleteAnalysis = async () => {
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-      const response = await fetch(`${API_URL}/analysis/${user._id}`, { credentials: 'include' });
+      const response = await fetch(`${API_URL}/analysis/${user._id}?includeSuggestions=true`, { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch analysis');
       const result = await response.json();
       if (result.success && result.data) {
@@ -585,7 +585,7 @@ function Dashboard() {
                 Welcome back, <span className="font-semibold text-blue-600">
                   {user?.firstName && user?.lastName 
                     ? `${user.firstName} ${user.lastName}` 
-                    : user?.email || "User"}
+                    : user?.email || "there"}
                 </span>
               </p>
             </div>
