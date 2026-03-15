@@ -27,6 +27,10 @@ function AnalysisHistory() {
 
   const [appliedFilters, setAppliedFilters] = useState({ q: "", role: "", minScore: "", maxScore: "" });
   const [selectedEntry, setSelectedEntry] = useState(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
+  const [detailSuggestions, setDetailSuggestions] = useState("");
+  const [detailExplanation, setDetailExplanation] = useState(null);
 
   const fetchHistory = useCallback(async (pageNumber = 1, filters = appliedFilters) => {
     if (!user?._id) return;
@@ -95,42 +99,74 @@ function AnalysisHistory() {
     [pagination.page, pagination.totalPages]
   );
 
-  const detailRole = selectedEntry?.jobRole || selectedEntry?.role || "Profile Analysis";
+  const handleViewDetails = useCallback(async (entry) => {
+    setSelectedEntry(entry);
+    setDetailError("");
+    setDetailSuggestions("");
+    setDetailExplanation(entry?.explanation || null);
+    setIsDetailLoading(true);
+
+    try {
+      const roleLabel = encodeURIComponent(entry?.jobRole || entry?.role || "");
+      const response = await fetch(
+        `${API_URL}/analysis/${user._id}?includeSuggestions=true&jobRole=${roleLabel}`,
+        { credentials: "include" }
+      );
+
+      if (!response.ok) {
+        throw new Error("Unable to load detailed AI recommendations");
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || "Unable to load detailed AI recommendations");
+      }
+
+      setDetailSuggestions(result.suggestions || "");
+      setDetailExplanation(result.explanation || result?.data?.explanation || entry?.explanation || null);
+    } catch (err) {
+      setDetailError(err.message || "Unable to load detailed AI recommendations");
+    } finally {
+      setIsDetailLoading(false);
+    }
+  }, [user]);
+
+  const detailRole = selectedEntry?.jobRole || selectedEntry?.role || "Job Role Not Specified";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/40 to-indigo-50/40 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <header className="bg-white rounded-2xl border border-gray-100 shadow-md p-6">
+        <header className="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-100 shadow-lg p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <button
                 onClick={() => navigate(-1)}
-                className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 mb-2"
+                className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 mb-2 font-medium"
               >
                 <span className="mr-2">←</span> Back
               </button>
-              <h1 className="text-3xl font-bold text-gray-900">Analysis History</h1>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-700 to-indigo-600 bg-clip-text text-transparent">Analysis History</h1>
               <p className="text-gray-600 mt-1">Browse, filter, and inspect your past profile-job analyses.</p>
             </div>
-            <div className="text-sm text-gray-600">
-              Total Records: <span className="font-semibold text-gray-900">{pagination.total || 0}</span>
+            <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700 font-medium shadow-sm">
+              Total Records: <span className="font-bold text-blue-900">{pagination.total || 0}</span>
             </div>
           </div>
         </header>
 
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-md p-6">
+        <section className="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-100 shadow-lg p-6">
           <form onSubmit={applyFilters} className="grid grid-cols-1 md:grid-cols-5 gap-3">
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search role or description"
-              className="md:col-span-2 border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="md:col-span-2 border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
             />
             <input
               value={role}
               onChange={(e) => setRole(e.target.value)}
               placeholder="Role (web / sde / data)"
-              className="border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
             />
             <input
               value={minScore}
@@ -139,7 +175,7 @@ function AnalysisHistory() {
               type="number"
               min="0"
               max="100"
-              className="border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
             />
             <input
               value={maxScore}
@@ -148,20 +184,20 @@ function AnalysisHistory() {
               type="number"
               min="0"
               max="100"
-              className="border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
             />
             <div className="md:col-span-5 flex gap-3">
-              <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+              <button type="submit" className="bg-blue-600 text-white px-5 py-2.5 rounded-xl hover:bg-blue-700 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:-translate-y-0.5">
                 Apply Filters
               </button>
-              <button type="button" onClick={clearFilters} className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200">
+              <button type="button" onClick={clearFilters} className="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-xl hover:bg-gray-200 font-semibold border border-gray-200 transition-all duration-200">
                 Clear
               </button>
             </div>
           </form>
         </section>
 
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-md p-6">
+        <section className="bg-white/95 backdrop-blur-sm rounded-2xl border border-gray-100 shadow-lg p-6">
           {isLoading ? (
             <div className="text-center py-10 text-gray-600">Loading history...</div>
           ) : error ? (
@@ -173,9 +209,9 @@ function AnalysisHistory() {
               {rows.map((entry) => {
                 const finalScore = Math.round(Number(entry.finalScore || 0));
                 const confidence = Number(entry.confidenceScore || 0).toFixed(1);
-                const title = entry.jobRole || entry.role || "Profile Analysis";
+                const title = entry.jobRole || entry.role || "Job Role Not Specified";
                 return (
-                  <div key={entry._id} className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50 transition-colors">
+                  <div key={entry._id} className="border border-gray-100 rounded-2xl p-4 hover:bg-blue-50/50 hover:border-blue-200 transition-all duration-200 shadow-sm hover:shadow-md">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
@@ -194,8 +230,8 @@ function AnalysisHistory() {
                           Confidence {confidence}%
                         </span>
                         <button
-                          onClick={() => setSelectedEntry(entry)}
-                          className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-sm"
+                          onClick={() => handleViewDetails(entry)}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 text-sm font-semibold shadow-sm transition-all duration-200"
                         >
                           View Details
                         </button>
@@ -211,15 +247,15 @@ function AnalysisHistory() {
             <button
               disabled={!pagination.hasPrev || isLoading}
               onClick={() => fetchHistory(Math.max(1, (pagination.page || 1) - 1))}
-              className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 disabled:opacity-50 hover:bg-gray-50 font-medium"
             >
               Previous
             </button>
-            <p className="text-sm text-gray-600">{pageLabel}</p>
+            <p className="text-sm text-gray-600 font-medium">{pageLabel}</p>
             <button
               disabled={!pagination.hasNext || isLoading}
               onClick={() => fetchHistory((pagination.page || 1) + 1)}
-              className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 disabled:opacity-50 hover:bg-gray-50 font-medium"
             >
               Next
             </button>
@@ -382,6 +418,74 @@ function AnalysisHistory() {
                   )}
                 </div>
               )}
+
+              {/* Detailed Explanation */}
+              {detailExplanation && (
+                <div className="bg-white border border-gray-200 rounded-xl p-5">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span>🧠</span> Detailed Explanation
+                  </h3>
+
+                  {detailExplanation?.topPositiveFactors?.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-sm font-semibold text-green-700 mb-2">Top Strengths</p>
+                      <div className="space-y-2">
+                        {detailExplanation.topPositiveFactors.map((item, idx) => (
+                          <div key={`pos-${idx}`} className="p-3 bg-green-50 rounded-lg border border-green-100 text-sm text-gray-700">
+                            {item.factor || "Strength"} {item.score !== undefined ? `(${Math.round(Number(item.score))}%)` : ""}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {detailExplanation?.improvementActions?.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold text-orange-700 mb-2">Improvement Actions</p>
+                      <div className="space-y-2">
+                        {detailExplanation.improvementActions.map((item, idx) => (
+                          <div key={`imp-${idx}`} className="p-3 bg-orange-50 rounded-lg border border-orange-100 text-sm text-gray-700">
+                            {item.action || item.description || "Improve highlighted areas"}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* AI Recommendations */}
+              <div className="bg-gradient-to-br from-indigo-50 via-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-5">
+                <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  <span>✨</span> AI Recommendations
+                </h3>
+
+                {isDetailLoading ? (
+                  <p className="text-sm text-gray-600">Loading AI recommendations...</p>
+                ) : detailError ? (
+                  <p className="text-sm text-red-600">{detailError}</p>
+                ) : detailSuggestions ? (
+                  <div className="space-y-2">
+                    {detailSuggestions
+                      .split("\n")
+                      .map((line) => line.trim())
+                      .filter(Boolean)
+                      .map((line, idx) => (
+                        <p key={`ai-${idx}`} className="text-sm text-gray-700 leading-relaxed">
+                          {line}
+                        </p>
+                      ))}
+                  </div>
+                ) : selectedEntry?.skillRecommendations?.length > 0 ? (
+                  <ul className="space-y-2">
+                    {selectedEntry.skillRecommendations.map((item, idx) => (
+                      <li key={`fallback-ai-${idx}`} className="text-sm text-gray-700">• {item}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-600">No AI recommendations available for this analysis.</p>
+                )}
+              </div>
 
               {/* Platform Scores Breakdown */}
               <div className="bg-white border border-gray-200 rounded-xl p-5">
