@@ -263,7 +263,7 @@ Candidate should have strong experience with these technologies and frameworks.
 
 # ================ MAIN ANALYSIS ================
 
-def analyze_profile(user_id: str, job_description: str = ""):
+def analyze_profile(user_id: str, job_description: str = "", job_role: str = ""):
     """
     Analyze user profile against job description with role-based scoring.
     
@@ -562,6 +562,7 @@ def analyze_profile(user_id: str, job_description: str = ""):
         
         db.analysishistories.insert_one({
             "userId": ObjectId(user_id),
+            "jobRole": (job_role or "").strip()[:120],
             "jobDescription": (job_description or "").strip()[:500],  # Store first 500 chars
             "role": role,
             "scores": scores,
@@ -590,6 +591,7 @@ def analyze_profile(user_id: str, job_description: str = ""):
     
     return {
         "success": True,
+        "jobRole": (job_role or "").strip(),
         "role": role,
         "scores": scores,
         "finalScore": final_score,
