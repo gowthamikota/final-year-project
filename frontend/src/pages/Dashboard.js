@@ -149,11 +149,11 @@ function Dashboard() {
       });
   }, [getPriorityFromScore]);
 
-  const buildRecentAnalyses = useCallback((history = [], fallbackFinalScore = 0, fallbackUpdatedAt = null) => {
+  const buildRecentAnalyses = useCallback((history = [], fallbackFinalScore = 0, fallbackUpdatedAt = null, fallbackRole = "") => {
     if (Array.isArray(history) && history.length > 0) {
       return history.map((entry, index) => ({
         id: entry._id || `${index}`,
-        role: entry.jobRole || "Profile Analysis",
+        role: entry.jobRole || entry.role || "Job Role Not Specified",
         company: "Resume + Coding Profiles",
         score: Math.round(Number(entry.finalScore || 0)),
         date: entry.createdAt
@@ -165,7 +165,7 @@ function Dashboard() {
     if (fallbackFinalScore > 0) {
       return [{
         id: "latest",
-        role: "Profile Analysis",
+        role: fallbackRole || "Job Role Not Specified",
         company: "Resume + Coding Profiles",
         score: Math.round(Number(fallbackFinalScore || 0)),
         date: fallbackUpdatedAt
@@ -180,7 +180,7 @@ function Dashboard() {
   const hydrateDashboardFromApi = useCallback((apiResult) => {
     if (!apiResult?.data) return;
 
-    const { finalScore = 0, scores = {}, confidenceScore = 0, updatedAt, skillGaps } = apiResult.data;
+    const { finalScore = 0, scores = {}, confidenceScore = 0, updatedAt, skillGaps, role = "" } = apiResult.data;
     
     const normalizedScores = {
       resume: Number(scores.resume || 0),
@@ -195,7 +195,7 @@ function Dashboard() {
       ? scoreValues.reduce((sum, value) => sum + value, 0) / scoreValues.length
       : 0;
 
-    const recentAnalyses = buildRecentAnalyses(apiResult.history, finalScore, updatedAt);
+    const recentAnalyses = buildRecentAnalyses(apiResult.history, finalScore, updatedAt, role);
     
     // Use role-specific skill gaps if available, otherwise use platform-based gaps
     let skillGapsToDisplay = buildSkillGaps(normalizedScores);
