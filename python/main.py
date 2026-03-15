@@ -51,7 +51,7 @@ def analyze():
     if not user_id:
         return jsonify({"error": "Missing userId"}), 400
 
-    result = analyze_profile(user_id, combined_job_text)
+    result = analyze_profile(user_id, combined_job_text, job_role)
     print(f"🟢 [REQ-{request_id}] ANALYSIS END\n")
     return jsonify(result)
 
