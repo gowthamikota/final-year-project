@@ -10,7 +10,7 @@ async function runPreprocessor(userId) {
     const response = await axios.post(
       `${pythonServiceUrl}/preprocess`,
       { userId },
-      { timeout: 60000 }
+      { timeout: 180000 } // Increased timeout to 3 minutes
     );
 
     if (response.data?.success) {
