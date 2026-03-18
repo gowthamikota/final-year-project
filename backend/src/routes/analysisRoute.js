@@ -118,8 +118,7 @@ analysisRouter.post("/analysis/run", validate(schemas.analysisRun), async (req, 
 
     const response = await axios.post(
       `${PYTHON_SERVICE_URL}/analyze-profile`,
-      { userId, jobRole, jobDescription },
-      { timeout: 60000 }
+      { userId, jobRole, jobDescription }
     );
 
     const pythonData = response.data;
