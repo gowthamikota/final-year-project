@@ -6,7 +6,6 @@
 [![React](https://img.shields.io/badge/React-19.x-61DAFB?style=flat-square&logo=react)](https://react.dev/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Latest-13AA52?style=flat-square&logo=mongodb)](https://www.mongodb.com/)
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=flat-square&logo=python)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-ISC-blue?style=flat-square)](#license)
 
 **Intelligent job-candidate matching powered by AI embeddings & cosine similarity**
 
@@ -130,7 +129,7 @@ Node.js + Express.js
 ├── File Upload: Multer
 ├── AI Integration: Groq SDK + LangChain
 ├── Web Scraping: Cheerio + Axios
-└── Validation: Validator.js
+└── Validation: Joi + custom validation middleware
 ```
 
 ### Frontend
@@ -159,6 +158,28 @@ Python 3.8+
 
 ## 🚀 Getting Started
 
+### Quick Start (TL;DR)
+
+```bash
+# Terminal 1 - Backend
+cd backend
+npm install
+npm run dev
+
+# Terminal 2 - Frontend
+cd frontend
+npm install
+npm start
+
+# Terminal 3 - Python service
+cd python
+python -m venv venv
+# Windows: venv\Scripts\activate
+# macOS/Linux: source venv/bin/activate
+pip install -r requirements.txt
+python main.py
+```
+
 ### Prerequisites
 - **Node.js**: 18.x or higher
 - **Python**: 3.8 or higher
@@ -179,11 +200,13 @@ cd backend
 # Create .env file
 cat > .env << EOF
 PORT=5000
-MONGO_URI= mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/profile_analyzer
+MONGODB_CONNECTION=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/profile_analyzer
 JWT_SECRET=your_jwt_secret_key_here
 CLIENT_URL=http://localhost:3000
+PYTHON_SERVICE_URL=http://localhost:8000
 GROQ_API_KEY=your_groq_api_key
-# Add GitHub, LeetCode, Codeforces, CodeChef API keys as needed
+GROQ_MODEL=llama-3.1-8b-instant
+# Add GITHUB_TOKEN if needed
 EOF
 
 # Install dependencies
@@ -221,21 +244,21 @@ pip install -r requirements.txt
 
 # Configure environment
 cat > .env << EOF
-MONGO_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/profile_analyzer
+MONGODB_CONNECTION=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/profile_analyzer
 EOF
 ```
 
 ### Verify Installation
 
 ```bash
-# Backend: Test API is running
-curl http://localhost:5000/api/health
+# Backend: Validate configuration
+cd backend && npm run validate
 
 # Frontend: Access dashboard
 open http://localhost:3000
 
 # Python: Test embedding generation
-python python/main.py
+cd python && python main.py
 ```
 
 ---
@@ -286,41 +309,47 @@ final-year-project/
 
 ### Authentication
 ```
-POST   /api/auth/register          Register new account
-POST   /api/auth/login             Login user
-POST   /api/auth/logout            Logout user
-POST   /api/auth/refresh-token     Refresh JWT token
+POST   /api/signup                 Register new account
+POST   /api/login                  Login user
+POST   /api/logout                 Logout user
 ```
 
 ### Profile & Platform Integration
 ```
-GET    /api/profile               Get user profile
-PUT    /api/profile               Update user profile
-GET    /api/profile/github        Get GitHub data
-GET    /api/profile/leetcode      Get LeetCode data
-GET    /api/profile/codeforces    Get Codeforces data
-GET    /api/profile/codechef      Get CodeChef data
+GET    /api/profile/view             Get logged-in user profile
+PATCH  /api/profile/update           Update profile fields
+DELETE /api/profile/delete           Delete account
+
+GET    /api/profile/:username        Fetch and save LeetCode profile
 ```
 
 ### Resume Management
 ```
-POST   /api/resume/upload         Upload & parse resume
-GET    /api/resume/parsed         Get extracted skills
-DELETE /api/resume/:id            Delete resume
+POST   /api/resume/upload            Upload/parse resume and optionally scrape profiles
+GET    /api/resume/parsed/:userId    Get latest parsed resume for a user
 ```
 
 ### Analysis & Matching
 ```
-POST   /api/analysis/match        Find job matches
-GET    /api/analysis/history      Get analysis history
-GET    /api/analysis/:id          Get analysis details
-POST   /api/analysis/generate-insights  AI insights
+POST   /api/analysis/run              Run profile analysis against job role/description
+GET    /api/analysis/:userId          Get latest analysis + LLM suggestions
+GET    /api/analysis/history/:userId  Get analysis history with filters/pagination
 ```
 
-### Compatibility
+### Response Format
+```json
+{
+  "success": true,
+  "message": "Operation successful",
+  "data": {}
+}
 ```
-POST   /api/compatibility/check   Check job compatibility
-GET    /api/compatibility/scores  Get all scores
+
+```json
+{
+  "success": false,
+  "error": "Error message"
+}
 ```
 
 ---
@@ -330,25 +359,28 @@ GET    /api/compatibility/scores  Get all scores
 ### 1. User Registration & Login
 ```javascript
 // Register
-POST /api/auth/register
+POST /api/signup
 {
+  "firstName": "John",
+  "lastName": "Developer",
   "email": "dev@example.com",
-  "password": "secure_password",
-  "name": "John Developer"
+  "password": "secure_password1"
 }
 
 // Login
-POST /api/auth/login
+POST /api/login
 {
   "email": "dev@example.com",
-  "password": "secure_password"
+  "password": "secure_password1"
 }
 ```
 
 ### 2. Connect GitHub Account
 ```javascript
-GET /api/profile/github?username=johndoe
-// Returns: followers, stars, commits, languages, repos, etc.
+POST /api/resume/upload
+Content-Type: multipart/form-data
+profileUrls=[{"profile":"github","profileUrl":"https://github.com/johndoe"}]
+// Returns: scrape + merge + preprocess pipeline status
 ```
 
 ### 3. Upload & Parse Resume
@@ -361,25 +393,18 @@ Content-Type: multipart/form-data
 
 ### 4. Find Job Matches
 ```javascript
-POST /api/analysis/match
+POST /api/analysis/run
 {
-  "jobDescription": "We need a Node.js developer with React experience...",
-  "minCompatibility": 75
+  "jobRole": "Backend Developer",
+  "jobDescription": "We need a Node.js developer with React experience..."
 }
-// Returns: [
-//   { jobId: 1, title: "Senior Dev", compatibility: 92 },
-//   { jobId: 2, title: "Junior Dev", compatibility: 84 }
-// ]
+// Returns: analysis scores + explanation
 ```
 
 ### 5. Get AI Insights
 ```javascript
-POST /api/analysis/generate-insights
-{
-  "userId": "user123",
-  "analyzeType": "strengths"
-}
-// Returns: AI-powered insights about strengths, improvement areas
+GET /api/analysis/:userId
+// Returns latest analysis + AI suggestions/history
 ```
 
 ---
@@ -389,44 +414,11 @@ POST /api/analysis/generate-insights
 - ✅ **JWT Authentication**: Secure token-based auth
 - ✅ **bcrypt Hashing**: Password encryption (10 rounds)
 - ✅ **CORS Protection**: Configured whitelist of origins
-- ✅ **Input Validation**: All inputs validated with Validator.js
+- ✅ **Input Validation**: Request payloads validated with Joi schemas
 - ✅ **Authentication Middleware**: Protected routes
 - ✅ **Secure Headers**: HTTP security headers
+- ✅ **Rate Limiting**: API request throttling to prevent abuse
 - ✅ **Environment Variables**: Sensitive data in .env
-
----
-
-## 📊 Key Algorithms
-
-### Vector Embedding (Normalization)
-```
-For each text description:
-  1. Generate 384-dim vector using BAAI/bge-small-en-v1.5
-  2. Calculate magnitude: ||v|| = √(v₁² + v₂² + ... + v₃₈₄²)
-  3. Normalize: v_norm = v / ||v||
-  4. Store in MongoDB
-```
-
-### Cosine Similarity Matching
-```
-similarity = (v₁ · v₂) / (||v₁|| × ||v₂||)
-
-For normalized vectors:
-  similarity = simply dot product (already normalized)
-  
-Score conversion:
-  score = similarity × 100  // Convert to 0-100 scale
-```
-
----
-
-## 📈 Performance Metrics
-
-- **Embedding Generation**: ~100ms per profile
-- **Similarity Calculation**: <1ms for single match
-- **Batch Processing**: 1000 profiles in ~2 seconds
-- **Vector Storage**: FAISS indexing for O(log n) retrieval
-- **Database Queries**: Indexed collections for <50ms response
 
 ---
 
@@ -484,7 +476,7 @@ git push origin feature/amazing-feature
 # Check if MongoDB is running
 mongod --version
 # Or use MongoDB Atlas connection string
-MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/devprofile
+MONGODB_CONNECTION=mongodb+srv://user:pass@cluster.mongodb.net/devprofile
 ```
 
 ### Python Virtual Environment Issues
@@ -518,12 +510,13 @@ python -c "from fastembed import TextEmbedding; TextEmbedding('BAAI/bge-small-en
 **Backend (.env)**
 ```env
 PORT=5000
-MONGO_URI=mongodb://localhost:27017/devprofile
+MONGODB_CONNECTION=mongodb://localhost:27017/devprofile
 JWT_SECRET=your_secret_key_min_32_chars
 CLIENT_URL=http://localhost:3000
+PYTHON_SERVICE_URL=http://localhost:8000
 GROQ_API_KEY=key_from_groq_ai
 GITHUB_TOKEN=optional
-LITECODE_TOKEN=optional
+GROQ_MODEL=llama-3.1-8b-instant
 ```
 
 **Frontend (.env)** (if needed)
@@ -534,7 +527,7 @@ REACT_APP_ENV=development
 
 **Python (.env)**
 ```env
-MONGO_URI=mongodb://localhost:27017/devprofile
+MONGODB_CONNECTION=mongodb://localhost:27017/devprofile
 EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
 ```
 

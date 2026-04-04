@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const dns = require("dns");
+const logger = require("../utils/logger");
 
 dns.setServers(["8.8.8.8", "8.8.4.4"]);
 
@@ -12,9 +13,9 @@ const connectDb = async () => {
       retryWrites: true,
       w: 'majority'
     });
-    console.log("Database connected successfully");
+    logger.info("Database connected successfully");
   } catch (err) {
-    console.error("Error in connection", err.message);
+    logger.error("Error in connection", { message: err.message });
     process.exit(1);
   }
 };

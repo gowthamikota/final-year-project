@@ -6,6 +6,9 @@ const FinalResults = require("../models/finalResultData");
 const AnalysisHistory = require("../models/analysisHistoryData");
 const { ObjectId } = require('mongoose').Types;
 const multer = require("multer");
+const { validate, schemas } = require("../utils/validator.js");
+const logger = require("../utils/logger");
+const { sendSuccess, sendError } = require("../utils/response.js");
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -13,6 +16,7 @@ const groq = new Groq({
 const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
 const PYTHON_SERVICE_URL =
   process.env.PYTHON_SERVICE_URL || "http://localhost:8000";
+const escapeRegex = (value = "") => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // ---------------- ANALYSIS HISTORY (FILTER + PAGINATION) ----------------
 analysisRouter.get("/analysis/history/:userId", async (req, res) => {
@@ -29,14 +33,14 @@ analysisRouter.get("/analysis/history/:userId", async (req, res) => {
     } = req.query;
 
     if (!requesterId || requesterId !== userId) {
-      return res.status(403).json({ success: false, error: "Forbidden" });
+      return sendError(res, "Forbidden", 403);
     }
 
     let objectId;
     try {
       objectId = new ObjectId(userId);
     } catch (err) {
-      return res.status(400).json({ success: false, error: "Invalid userId format" });
+      return sendError(res, "Invalid userId format", 400);
     }
 
     const safePage = Math.max(1, parseInt(page, 10) || 1);
@@ -47,7 +51,7 @@ analysisRouter.get("/analysis/history/:userId", async (req, res) => {
     const andConditions = [];
 
     if (q && q.trim()) {
-      const term = q.trim();
+      const term = escapeRegex(q.trim());
       andConditions.push({
         $or: [
         { jobRole: { $regex: term, $options: "i" } },
@@ -58,7 +62,7 @@ analysisRouter.get("/analysis/history/:userId", async (req, res) => {
     }
 
     if (role && role.trim()) {
-      const roleRegex = { $regex: `^${role.trim()}$`, $options: "i" };
+      const roleRegex = { $regex: `^${escapeRegex(role.trim())}$`, $options: "i" };
       andConditions.push({
         $or: [{ jobRole: roleRegex }, { role: roleRegex }],
       });
@@ -85,9 +89,7 @@ analysisRouter.get("/analysis/history/:userId", async (req, res) => {
       AnalysisHistory.countDocuments(filter),
     ]);
 
-    return res.json({
-      success: true,
-      data: rows,
+    return sendSuccess(res, rows, "Analysis history fetched", 200, {
       pagination: {
         page: safePage,
         limit: safeLimit,
@@ -98,53 +100,45 @@ analysisRouter.get("/analysis/history/:userId", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("History fetch error:", err.message);
-    return res.status(500).json({ success: false, error: "Failed to fetch analysis history" });
+    logger.error("History fetch error", { message: err.message });
+    return sendError(res, "Failed to fetch analysis history", 500);
   }
 });
 
 // ---------------- RUN ANALYSIS ----------------
-analysisRouter.post("/analysis/run", async (req, res) => {
+analysisRouter.post("/analysis/run", validate(schemas.analysisRun), async (req, res) => {
   try {
     const userId = req.user?._id?.toString();
-    const jobRole = (req.body?.jobRole || "").toString().trim();
-    const jobDescription = (req.body?.jobDescription || "").toString().trim();
+    const jobRole = (req.validatedBody?.jobRole || "").toString().trim();
+    const jobDescription = (req.validatedBody?.jobDescription || "").toString().trim();
 
     if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthorized user",
-      });
+      return sendError(res, "Unauthorized user", 401);
     }
 
     const response = await axios.post(
       `${PYTHON_SERVICE_URL}/analyze-profile`,
-      { userId, jobRole, jobDescription },
-      { timeout: 60000 }
+      { userId, jobRole, jobDescription }
     );
 
     const pythonData = response.data;
 
     if (!pythonData.success) {
-      return res.status(400).json({
-        success: false,
-        error: pythonData.message,
-      });
+      return sendError(res, pythonData.message, 400);
     }
 
-    return res.json({
-      success: true,
-      message: "Profile analysis completed",
-      data: pythonData,
+    return sendSuccess(res, pythonData, "Profile analysis completed", 200, {
+      explanation: pythonData.explanation || null,
     });
 
   } catch (err) {
-    console.error("Analysis error:", err.response?.data || err.message);
-
-    return res.status(500).json({
-      success: false,
-      error: "Analysis service failed",
+    logger.error("Analysis error", {
+      code: err.code,
+      status: err.response?.status,
+      message: err.message,
     });
+
+    return sendError(res, "Analysis service failed", 500);
   }
 });
 
@@ -153,13 +147,11 @@ analysisRouter.get("/analysis/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
     const { jobRole } = req.query;
+    const includeSuggestions = String(req.query.includeSuggestions || "").toLowerCase() === "true";
     const requesterId = req.user?._id?.toString();
 
     if (!requesterId || requesterId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: "Forbidden",
-      });
+      return sendError(res, "Forbidden", 403);
     }
 
     // Convert string userId to ObjectId for database query
@@ -168,31 +160,31 @@ analysisRouter.get("/analysis/:userId", async (req, res) => {
     try {
       objectId = new ObjectId(userId);
     } catch (err) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid userId format",
-      });
+      return sendError(res, "Invalid userId format", 400);
     }
 
-    const result = await FinalResults.findOne({ userId: objectId });
-    const history = await AnalysisHistory.find({ userId: objectId })
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .lean();
+    const [result, history] = await Promise.all([
+      FinalResults.findOne({ userId: objectId }).lean(),
+      AnalysisHistory.find({ userId: objectId })
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean(),
+    ]);
 
-    console.log("🔍 DEBUG - Analysis result for userId:", userId);
-    console.log("  Scores:", result?.scores);
-    console.log("  Final Score:", result?.finalScore);
-    console.log("  History count:", history?.length);
+    logger.info("Analysis loaded", {
+      userId,
+      hasResult: Boolean(result),
+      historyCount: history?.length || 0,
+    });
 
     if (!result) {
-      return res.status(404).json({
-        success: false,
-        error: "No analysis found",
-      });
+      return sendError(res, "No analysis found", 404);
     }
 
-    const prompt = `
+    let suggestions = "";
+
+    if (includeSuggestions) {
+      const prompt = `
 Developer Scores:
 ${JSON.stringify(result.scores, null, 2)}
 
@@ -216,37 +208,34 @@ Generate:
 Keep concise and actionable.
 `;
 
-    const completion = await groq.chat.completions.create({
-      model: GROQ_MODEL,
-      messages: [
-        {
-          role: "system",
-          content: "You are a concise technical career coach for software developers. You help interpret candidate evaluation data, including confidence scores that indicate data reliability. You do NOT calculate scores - you explain them.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      temperature: 0.3,
-    });
+      const completion = await groq.chat.completions.create({
+        model: GROQ_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "You are a concise technical career coach for software developers. You help interpret candidate evaluation data, including confidence scores that indicate data reliability. You do NOT calculate scores - you explain them.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.3,
+      });
 
-    const suggestions = completion.choices?.[0]?.message?.content || "";
+      suggestions = completion.choices?.[0]?.message?.content || "";
+    }
 
-    return res.json({
-      success: true,
-      data: result,
+    return sendSuccess(res, result, "Analysis fetched", 200, {
       history,
       suggestions,
+      explanation: result.explanation || null,
     });
 
   } catch (err) {
-    console.error("LLM error:", err.message);
+    logger.error("LLM error", { message: err.message });
 
-    return res.status(500).json({
-      success: false,
-      error: "Suggestion generation failed",
-    });
+    return sendError(res, "Suggestion generation failed", 500);
   }
 });
 

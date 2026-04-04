@@ -17,6 +17,27 @@ const FinalResultSchema = new mongoose.Schema(
       resume: { type: Number, default: 0 },
     },
 
+    role: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    skillGaps: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+
+    skillRecommendations: {
+      type: [String],
+      default: [],
+    },
+
+    explanation: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+
     finalScore: {
       type: Number,
       default: 0,

@@ -3,6 +3,7 @@ const codechefModel = require("../models/codechefData");
 const leetcodeModel = require("../models/leetcodeData");
 const githubModel = require("../models/githubData");
 const codeforcesModel = require("../models/codeforcesData");
+const logger = require("../utils/logger");
 
 async function mergeData(userId) {
   const cc = await codechefModel.findOne({ userId }).sort({ createdAt: -1 });
@@ -76,7 +77,7 @@ async function mergeData(userId) {
     { upsert: true, new: true }
   );
 
-  console.log("Data merged successfully (upserted)");
+  logger.info("Data merged successfully", { userId: String(userId) });
   return result;
 }
 

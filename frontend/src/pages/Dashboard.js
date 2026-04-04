@@ -10,6 +10,78 @@ const skillMetadata = {
   resume: "Resume Quality",
 };
 
+const buildFallbackExplanation = (analysisData) => {
+  if (!analysisData) return null;
+
+  const scores = analysisData.scores || {};
+  const skillGaps = analysisData.skillGaps || {};
+  const entries = Object.entries(scores)
+    .filter(([, value]) => Number(value) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]));
+
+  const topPositiveFactors = entries.slice(0, 3).map(([platform, value]) => ({
+    factor: platform.charAt(0).toUpperCase() + platform.slice(1),
+    score: Number(value),
+  }));
+
+  const topNegativeFactors = [
+    ...entries.slice(-2).map(([platform, value]) => ({
+      factor: platform.charAt(0).toUpperCase() + platform.slice(1),
+      score: Number(value),
+    })),
+    ...(Array.isArray(skillGaps.missing)
+      ? skillGaps.missing.slice(0, 3).map((skill) => ({
+          factor: `Missing: ${skill}`,
+          score: 0,
+        }))
+      : []),
+  ];
+
+  const contributionBreakdown = entries.map(([platform, value]) => ({
+    platform: platform.charAt(0).toUpperCase() + platform.slice(1),
+    score: Math.round(Number(value)),
+    contribution: Math.round(Number(value) / Math.max(entries.length, 1)),
+  }));
+
+  const improvementActions = [
+    ...entries
+      .filter(([, value]) => Number(value) < 70)
+      .slice(0, 3)
+      .map(([platform, value]) => ({
+        action: `Improve ${platform.charAt(0).toUpperCase() + platform.slice(1)} profile`,
+        currentScore: Number(value),
+        targetScore: 80,
+        estimatedGain: Math.max(3, Math.round((80 - Number(value)) / 4)),
+        description: `Improving your ${platform} evidence can raise your overall compatibility score.`,
+      })),
+    ...(Array.isArray(skillGaps.missing)
+      ? skillGaps.missing.slice(0, 2).map((skill) => ({
+          action: `Learn and demonstrate ${skill}`,
+          estimatedGain: 5,
+          description: `${skill} appears in the target role requirements but is missing from your current profile evidence.`,
+        }))
+      : []),
+  ];
+
+  const confidenceScore = Number(analysisData.confidenceScore || 0);
+  let confidenceNotes = "Limited reliability explanation available.";
+  if (confidenceScore >= 70) {
+    confidenceNotes = "High confidence: multiple connected sources are contributing enough evidence for a reliable evaluation.";
+  } else if (confidenceScore >= 40) {
+    confidenceNotes = "Medium confidence: some sources are contributing, but more connected profiles would improve reliability.";
+  } else {
+    confidenceNotes = "Low confidence: the score is based on limited available evidence, so connecting more platforms should improve reliability.";
+  }
+
+  return {
+    topPositiveFactors,
+    topNegativeFactors,
+    contributionBreakdown,
+    improvementActions,
+    confidenceNotes,
+  };
+};
+
 function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -77,11 +149,11 @@ function Dashboard() {
       });
   }, [getPriorityFromScore]);
 
-  const buildRecentAnalyses = useCallback((history = [], fallbackFinalScore = 0, fallbackUpdatedAt = null) => {
+  const buildRecentAnalyses = useCallback((history = [], fallbackFinalScore = 0, fallbackUpdatedAt = null, fallbackRole = "") => {
     if (Array.isArray(history) && history.length > 0) {
       return history.map((entry, index) => ({
         id: entry._id || `${index}`,
-        role: entry.jobRole || "Profile Analysis",
+        role: entry.jobRole || entry.role || "Job Role Not Specified",
         company: "Resume + Coding Profiles",
         score: Math.round(Number(entry.finalScore || 0)),
         date: entry.createdAt
@@ -93,7 +165,7 @@ function Dashboard() {
     if (fallbackFinalScore > 0) {
       return [{
         id: "latest",
-        role: "Profile Analysis",
+        role: fallbackRole || "Job Role Not Specified",
         company: "Resume + Coding Profiles",
         score: Math.round(Number(fallbackFinalScore || 0)),
         date: fallbackUpdatedAt
@@ -108,13 +180,7 @@ function Dashboard() {
   const hydrateDashboardFromApi = useCallback((apiResult) => {
     if (!apiResult?.data) return;
 
-    const { finalScore = 0, scores = {}, confidenceScore = 0, updatedAt, skillGaps, skillRecommendations } = apiResult.data;
-    
-    // DEBUG: Log actual scores received from API
-    console.log("🔍 API Scores Received:", scores);
-    console.log("🔍 Final Score:", finalScore);
-    console.log("🔍 Skill Gaps from API:", skillGaps);
-    console.log("🔍 Skill Recommendations:", skillRecommendations);
+    const { finalScore = 0, scores = {}, confidenceScore = 0, updatedAt, skillGaps, role = "" } = apiResult.data;
     
     const normalizedScores = {
       resume: Number(scores.resume || 0),
@@ -124,14 +190,12 @@ function Dashboard() {
       codeforces: Number(scores.codeforces || 0),
     };
 
-    console.log("🔍 Normalized Scores:", normalizedScores);
-
     const scoreValues = Object.values(normalizedScores);
     const avgScore = scoreValues.length
       ? scoreValues.reduce((sum, value) => sum + value, 0) / scoreValues.length
       : 0;
 
-    const recentAnalyses = buildRecentAnalyses(apiResult.history, finalScore, updatedAt);
+    const recentAnalyses = buildRecentAnalyses(apiResult.history, finalScore, updatedAt, role);
     
     // Use role-specific skill gaps if available, otherwise use platform-based gaps
     let skillGapsToDisplay = buildSkillGaps(normalizedScores);
@@ -150,8 +214,6 @@ function Dashboard() {
       ];
     }
     
-    console.log("🔍 Skill Gaps to Display:", skillGapsToDisplay);
-
     setProfileScores(normalizedScores);
     setDashboardData({
       stats: {
@@ -166,7 +228,6 @@ function Dashboard() {
       skillGaps: skillGapsToDisplay,
     });
     
-    console.log("🎯 Confidence Score Set:", confidenceScore);
   }, [buildRecentAnalyses, buildSkillGaps]);
 
   // Fetch dashboard data from backend
@@ -179,7 +240,7 @@ function Dashboard() {
         const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
         
         // Fetch analysis results
-        const analysisResponse = await fetch(`${API_URL}/analysis/${user._id}`, {
+        const analysisResponse = await fetch(`${API_URL}/analysis/${user._id}?includeSuggestions=false`, {
           credentials: 'include',
         });
 
@@ -191,7 +252,6 @@ function Dashboard() {
         }
         // If no analysis data, stats remain at 0 (initial state)
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
       } finally {
         setIsLoading(false);
       }
@@ -257,7 +317,6 @@ function Dashboard() {
           alert(`✅ Resume uploaded!\n\n⏳ Profiles are being scraped in the background...\nThis may take 20-30 seconds.\n\nYou can close this and click "Get Score" in a moment.`);
           
           // Wait 10 seconds before trying analysis (gives n8n time to scrape)
-          console.log("Waiting for profile scraping...");
           await new Promise(resolve => setTimeout(resolve, 10000));
           
           // Then wait for preprocessor to complete
@@ -266,7 +325,6 @@ function Dashboard() {
           while (retries < 5 && !preprocessSucceeded) {
             try {
               setIsAnalyzing(true);
-              console.log(`Attempt ${retries + 1}: Triggering analysis...`);
               
               const analysisResponse = await fetch(`${API_URL}/analysis/run`, {
                 method: 'POST',
@@ -294,10 +352,8 @@ function Dashboard() {
                 throw new Error('Analysis request failed');
               }
             } catch (analysisError) {
-              console.warn(`Analysis attempt ${retries + 1} failed:`, analysisError.message);
               retries++;
               if (retries < 5) {
-                console.log(`Waiting 5 seconds before retry...`);
                 await new Promise(resolve => setTimeout(resolve, 5000));
               }
             } finally {
@@ -313,11 +369,9 @@ function Dashboard() {
         }
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('Backend error response:', response.status, errorData);
         throw new Error(errorData.error || `Request failed with status ${response.status}`);
       }
     } catch (error) {
-      console.error("Error during preprocess:", error);
       alert(`⚠️ Issue during setup:\n\n${error.message}\n\nPlease try clicking "Get Score" in 30 seconds.`);
     } finally {
       setIsPreprocessing(false);
@@ -327,7 +381,7 @@ function Dashboard() {
   const handleGetScores = async () => {
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-      const response = await fetch(`${API_URL}/analysis/${user._id}`, { credentials: 'include' });
+      const response = await fetch(`${API_URL}/analysis/${user._id}?includeSuggestions=false`, { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch scores');
       const result = await response.json();
       if (result.success && result.data) {
@@ -342,7 +396,6 @@ function Dashboard() {
         alert(`✅ Scores loaded successfully!\n\nOverall Score: ${Math.round(Number(result.data.finalScore || 0))}/100\n\nCheck the dashboard for detailed breakdown.`);
       }
     } catch (err) {
-      console.error('Get scores error:', err);
       alert('Unable to get scores. Please ensure analysis completed.');
     }
   };
@@ -350,7 +403,7 @@ function Dashboard() {
   const handleGetCompleteAnalysis = async () => {
     try {
       const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-      const response = await fetch(`${API_URL}/analysis/${user._id}`, { credentials: 'include' });
+      const response = await fetch(`${API_URL}/analysis/${user._id}?includeSuggestions=true`, { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch analysis');
       const result = await response.json();
       if (result.success && result.data) {
@@ -363,6 +416,7 @@ function Dashboard() {
           confidenceScore: result.data.confidenceScore || 0,
           skillGaps: result.data.skillGaps || null,
           skillRecommendations: result.data.skillRecommendations || [],
+          explanation: result.explanation || result.data.explanation || null,
           suggestions: result.suggestions || 'Suggestions unavailable. Configure GEMINI_API_KEY.',
         });
         
@@ -374,7 +428,6 @@ function Dashboard() {
         setShowDetailedAnalysis(true);
       }
     } catch (err) {
-      console.error('Get analysis error:', err);
       alert('Unable to get detailed analysis. Please ensure analysis completed.');
     }
   };
@@ -532,7 +585,7 @@ function Dashboard() {
                 Welcome back, <span className="font-semibold text-blue-600">
                   {user?.firstName && user?.lastName 
                     ? `${user.firstName} ${user.lastName}` 
-                    : user?.email || "User"}
+                    : user?.email || "there"}
                 </span>
               </p>
             </div>
@@ -1244,6 +1297,80 @@ function Dashboard() {
                     )}
                   </div>
                 </div>
+
+                {(detailedAnalysisData.explanation || buildFallbackExplanation(detailedAnalysisData)) && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-gradient-to-br from-violet-50 to-indigo-50 border-2 border-violet-200 rounded-xl p-6">
+                      <h3 className="text-xl font-bold text-gray-900 mb-4">Why This Score?</h3>
+                      <p className="text-sm text-gray-700 mb-4">
+                        {(detailedAnalysisData.explanation || buildFallbackExplanation(detailedAnalysisData)).confidenceNotes}
+                      </p>
+
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm font-semibold text-green-700 mb-2">Top Positive Factors</p>
+                          <div className="space-y-2">
+                            {(detailedAnalysisData.explanation || buildFallbackExplanation(detailedAnalysisData)).topPositiveFactors?.map((factor, idx) => (
+                              <div key={idx} className="flex items-center justify-between bg-white rounded-lg p-3 border border-green-100">
+                                <span className="text-sm font-medium text-gray-900">{factor.factor}</span>
+                                <span className="text-sm font-bold text-green-700">{Math.round(factor.score)}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-sm font-semibold text-red-700 mb-2">Main Reasons Holding Score Back</p>
+                          <div className="space-y-2">
+                            {(detailedAnalysisData.explanation || buildFallbackExplanation(detailedAnalysisData)).topNegativeFactors?.map((factor, idx) => (
+                              <div key={idx} className="flex items-center justify-between bg-white rounded-lg p-3 border border-red-100">
+                                <span className="text-sm font-medium text-gray-900">{factor.factor}</span>
+                                <span className="text-sm font-bold text-red-700">{Math.round(factor.score)}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-sm font-semibold text-violet-700 mb-2">Contribution Breakdown</p>
+                          <div className="space-y-3">
+                            {(detailedAnalysisData.explanation || buildFallbackExplanation(detailedAnalysisData)).contributionBreakdown?.map((item, idx) => (
+                              <div key={idx}>
+                                <div className="flex justify-between text-sm mb-1">
+                                  <span className="font-medium text-gray-800">{item.platform}</span>
+                                  <span className="text-gray-700">{item.score}%</span>
+                                </div>
+                                <div className="w-full bg-white rounded-full h-2 border border-violet-100">
+                                  <div className="h-2 rounded-full bg-violet-600" style={{ width: `${Math.min(100, item.score)}%` }}></div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl p-6">
+                      <h3 className="text-xl font-bold text-gray-900 mb-4">How to Improve Your Score</h3>
+                      <div className="space-y-3">
+                        {(detailedAnalysisData.explanation || buildFallbackExplanation(detailedAnalysisData)).improvementActions?.map((action, idx) => (
+                          <div key={idx} className="bg-white rounded-lg p-4 border border-blue-100">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <p className="font-semibold text-gray-900">{action.action}</p>
+                              <span className="text-sm font-bold text-blue-700 whitespace-nowrap">+{action.estimatedGain} pts</span>
+                            </div>
+                            <p className="text-sm text-gray-700">{action.description}</p>
+                            {action.currentScore !== undefined && (
+                              <p className="text-xs text-gray-500 mt-2">
+                                Current: {Math.round(action.currentScore)}% | Target: {action.targetScore}%
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50 border-2 border-purple-300 rounded-xl p-8 shadow-xl">
                   <div className="flex items-start gap-4 mb-8">

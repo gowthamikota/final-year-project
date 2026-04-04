@@ -5,6 +5,24 @@ const AuthContext = createContext();
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
+const normalizeUser = (payload) => {
+  if (!payload || typeof payload !== 'object') return null;
+
+  if (payload._id && (payload.email || payload.firstName || payload.lastName)) {
+    return payload;
+  }
+
+  if (payload.user && typeof payload.user === 'object') {
+    return normalizeUser(payload.user);
+  }
+
+  if (payload.data && typeof payload.data === 'object') {
+    return normalizeUser(payload.data);
+  }
+
+  return null;
+};
+
 export const AuthProvider = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
@@ -17,8 +35,13 @@ export const AuthProvider = ({ children }) => {
         const storedUser = localStorage.getItem('user');
         
         if (storedUser) {
-          setIsLoggedIn(true);
-          setUser(JSON.parse(storedUser));
+          const parsedUser = normalizeUser(JSON.parse(storedUser));
+          if (parsedUser) {
+            setIsLoggedIn(true);
+            setUser(parsedUser);
+          } else {
+            localStorage.removeItem('user');
+          }
         }
       } catch (error) {
         console.error('Error checking auth status:', error);
@@ -47,7 +70,12 @@ export const AuthProvider = ({ children }) => {
       }
 
       const data = await response.json();
-      const userData = data.user || data;
+      const userData = normalizeUser(data);
+
+      if (!userData) {
+        throw new Error('Invalid login response received from server');
+      }
+
       setIsLoggedIn(true);
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));

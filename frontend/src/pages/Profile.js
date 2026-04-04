@@ -135,11 +135,8 @@ function Profile() {
               credentials: 'include',
             });
 
-            console.log("Resume fetch status:", resumeResponse.status);
-
             if (resumeResponse.ok) {
               const resumeParsedData = await resumeResponse.json();
-              console.log("Resume data fetched:", resumeParsedData);
               
               if (resumeParsedData.success && resumeParsedData.data) {
                 setAiExtracted({
@@ -154,21 +151,12 @@ function Profile() {
                   certifications: resumeParsedData.data.certifications || [],
                   achievements: resumeParsedData.data.achievements || [],
                 });
-                console.log("AI extracted data updated:", resumeParsedData.data);
-              } else {
-                console.log("Resume data not in expected format:", resumeParsedData);
               }
-            } else if (resumeResponse.status === 404) {
-              console.log("No resume data found for user (404)");
-            } else {
-              console.warn("Resume fetch response not ok:", resumeResponse.status);
             }
           } catch (resumeError) {
-            console.error("Error fetching resume data:", resumeError);
           }
         }
       } catch (error) {
-        console.error("Error fetching profile data:", error);
       } finally {
         setIsLoading(false);
       }
@@ -236,11 +224,8 @@ function Profile() {
               credentials: 'include',
             });
             
-            console.log("Resume fetch response status:", resumeResponse.status);
-            
             if (resumeResponse.ok) {
               const resumeParsedData = await resumeResponse.json();
-              console.log("Fetched resume data:", resumeParsedData);
               
               if (resumeParsedData.success && resumeParsedData.data) {
                 setAiExtracted({
@@ -255,28 +240,18 @@ function Profile() {
                   certifications: resumeParsedData.data.certifications || [],
                   achievements: resumeParsedData.data.achievements || [],
                 });
-                console.log("AI extracted data updated successfully");
-              }
-            } else {
-              console.warn("Resume response not ok:", resumeResponse.status);
-              // If 404, show info message
-              if (resumeResponse.status === 404) {
-                console.info("No resume data found yet, will show default data");
               }
             }
           } catch (fetchError) {
-            console.error("Error fetching resume data after upload:", fetchError);
           }
         }
         
         alert('Resume uploaded and processed successfully!');
       } else {
         const errorMsg = result.error || result.message || 'Upload failed';
-        console.error('Upload error:', errorMsg);
         throw new Error(errorMsg);
       }
     } catch (error) {
-      console.error("Error uploading resume:", error);
       setResumeStatus("Upload failed. Please try again.");
       alert(`Failed to upload resume: ${error.message}`);
     }
@@ -321,11 +296,9 @@ function Profile() {
         alert('Profile saved successfully!');
       } else {
         const errorMsg = result.error || 'Failed to save profile';
-        console.error('Save error:', errorMsg);
         throw new Error(errorMsg);
       }
     } catch (error) {
-      console.error("Error saving profile:", error);
       alert(`Failed to save profile: ${error.message}`);
     } finally {
       setIsSaving(false);

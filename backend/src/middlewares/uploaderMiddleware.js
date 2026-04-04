@@ -4,6 +4,15 @@ const fs = require("fs");
 const crypto = require("crypto");
 const { parser } = require("../services/parser");
 const resumeParsedDataModel = require("../models/resumeParsedData");
+const logger = require("../utils/logger");
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+const ALLOWED_EXTENSIONS = [".pdf", ".doc", ".docx"];
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, "../uploads/");
@@ -21,7 +30,25 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage }).single("resume");
+const fileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname || "").toLowerCase();
+  const isMimeAllowed = ALLOWED_MIME_TYPES.includes(file.mimetype);
+  const isExtAllowed = ALLOWED_EXTENSIONS.includes(ext);
+
+  if (!isMimeAllowed || !isExtAllowed) {
+    const invalidTypeError = new Error("Invalid file type. Only PDF, DOC, and DOCX are allowed.");
+    invalidTypeError.code = "INVALID_FILE_TYPE";
+    return cb(invalidTypeError);
+  }
+
+  return cb(null, true);
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+}).single("resume");
 
 // Calculate MD5 hash of a file
 function calculateFileHash(filePath) {
@@ -32,7 +59,22 @@ function calculateFileHash(filePath) {
 async function uploader(req, res, next) {
   upload(req, res, async (err) => {
     if (err) {
-      console.error("Multer upload error:", err.message);
+      logger.error("Multer upload error", { message: err.message });
+
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          success: false,
+          error: "File too large. Maximum allowed size is 5MB.",
+        });
+      }
+
+      if (err.code === "INVALID_FILE_TYPE") {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid file type. Only PDF, DOC, and DOCX are allowed.",
+        });
+      }
+
       return res.status(400).json({
         success: false,
         error: "File upload failed",
@@ -67,11 +109,11 @@ async function uploader(req, res, next) {
         });
       }
 
-      console.log("Sending file to Python parser:", filePath);
+      logger.info("Sending file to Python parser", { filePath });
 
       // Calculate hash of uploaded file
       const fileHash = calculateFileHash(filePath);
-      console.log("📄 File hash:", fileHash);
+      logger.info("Resume file hash generated", { fileHash });
 
       // Check if we have an existing resume with the same hash
       const existingResume = await resumeParsedDataModel
@@ -79,22 +121,41 @@ async function uploader(req, res, next) {
         .sort({ createdAt: -1 });
 
       if (existingResume && existingResume.fileHash === fileHash) {
-        console.log("✅ SAME RESUME DETECTED - Reusing from database (NO PARSING)");
+        logger.info("Same resume detected; reusing parsed data", { userId: String(userId) });
         req.parsedResume = existingResume;
         req.resumeReuseReason = "identical_hash";
         return next();
       }
 
-      console.log("📝 NEW RESUME DETECTED - Parsing...");
+      logger.info("New resume detected; parsing started", { userId: String(userId) });
       let parsed;
       try {
         parsed = await parser(filePath);
         // console.log("Parsed result:", parsed); // Removed - too verbose
       } catch (parseError) {
-        console.error("Resume parsing failed:", parseError.message);
+        logger.error("Resume parsing failed", {
+          code: parseError.code,
+          message: parseError.message,
+        });
+
+        if (parseError.code === "PARSER_TIMEOUT") {
+          return res.status(504).json({
+            success: false,
+            error:
+              "Resume parsing timed out. Please try again, or upload a smaller/simple text resume.",
+          });
+        }
+
+        if (parseError.code === "PARSER_UNAVAILABLE") {
+          return res.status(503).json({
+            success: false,
+            error: "Resume parsing microservice is unavailable.",
+          });
+        }
+
         return res.status(500).json({
           success: false,
-          error: "Resume parsing microservice failed. Ensure Python service is running.",
+          error: "Resume parsing microservice failed.",
         });
       }
 
@@ -121,7 +182,7 @@ async function uploader(req, res, next) {
       req.parsedResume = savedResume;
       next();
     } catch (error) {
-      console.error("Error in uploader:", error.message);
+      logger.error("Uploader middleware error", { message: error.message });
       res.status(500).json({
         success: false,
         error: error.message,

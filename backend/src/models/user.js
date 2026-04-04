@@ -123,6 +123,17 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    // ================= PASSWORD RESET =================
+    resetToken: {
+      type: String,
+      select: false,
+    },
+
+    resetTokenExpiry: {
+      type: Date,
+      select: false,
+    },
   },
   { timestamps: true }
 );
@@ -130,6 +141,8 @@ const userSchema = new mongoose.Schema(
 // ================= INDEXES =================
 // Note: email already has unique index via unique: true in schema
 userSchema.index({ firstName: 1, lastName: 1 });
+userSchema.index({ createdAt: -1 });
+userSchema.index({ updatedAt: -1 });
 
 // ================= PASSWORD HASHING =================
 userSchema.pre("save", async function (next) {
