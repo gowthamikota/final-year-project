@@ -179,8 +179,7 @@ CLIENT_URL=http://localhost:3000
 ```python
 # MongoDB Configuration
 MONGODB_URI = "mongodb://localhost:27017"
-DB_NAME = "profileecho"
-
+DB_NAME = <Database_name>
 # Groq API Configuration
 GROQ_API_KEY = "your_groq_api_key_here"
 
