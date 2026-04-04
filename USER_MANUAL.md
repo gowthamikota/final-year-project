@@ -148,7 +148,7 @@ cd ..
 ```plaintext
 # Database Configuration
 MONGODB_URI=mongodb://localhost:27017
-DB_NAME=profileecho
+DB_NAME=<database_name>
 COLLECTION_USERS=users
 COLLECTION_GITHUB=githubdatas
 COLLECTION_LEETCODE=leetcodedatas
@@ -156,7 +156,6 @@ COLLECTION_CODEFORCES=codeforcesDatas
 COLLECTION_CODECHEF=codechefdatas
 COLLECTION_RESUME=resumeparseddatas
 COLLECTION_COMBINED=combineddatas
-COLLECTION_EMBEDDINGS=embeddings
 COLLECTION_ANALYSIS=analysishistories
 COLLECTION_FINAL_RESULT=finalresults
 
